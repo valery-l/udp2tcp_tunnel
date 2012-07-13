@@ -1,15 +1,19 @@
 TEMPLATE = app
 
+CONFIG += debug_and_release
+
 BIN_PATH = ../bin/$$BIN_NAME
 
-release : BUILD_PATH = $$join(BIN_PATH,,,"/release")
-debug   : BUILD_PATH = $$join(BIN_PATH,,,"/debug")
+#CONFIG(debug)   : BUILD_PATH = $$join(BIN_PATH,,,"/debug")
+#CONFIG(release) : BUILD_PATH = $$join(BIN_PATH,,,"/release")
 
-debug{
+CONFIG(debug){
+    BUILD_PATH = $$join(BIN_PATH,,,"/debug")
     message("Debug")
 }
 
-release{
+CONFIG(release){
+    BUILD_PATH = $$join(BIN_PATH,,,"/release")
     message("Release")
 }
 
