@@ -3,7 +3,7 @@
 #include "asio_helper.h"
 
 typedef
-    function<void (tcp::socket&, error_code const&)> // moved socket
+    function<void (tcp::socket&, error_code const&)> // moveable socket
     on_connected_f;
 
 void connect(io_service& io, string server, short port, on_connected_f const& on_connected);
@@ -12,7 +12,7 @@ struct async_acceptor
         : noncopyable
 {
     typedef
-        function<void (tcp::socket&, tcp::endpoint const&, error_code const&)> // moved socket
+        function<void (tcp::socket&, tcp::endpoint const&, error_code const&)> // moveable socket
         on_accept_f;
 
     async_acceptor(boost::asio::io_service& io, size_t port, on_accept_f const& on_accept);

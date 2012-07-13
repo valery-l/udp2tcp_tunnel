@@ -57,9 +57,9 @@ int main(int argc, char** argv)
         parse_cmdline(argc, argv, is_server, server, port);
 
         if (is_server)
-            run_server(server, port);
+            run_tcp_server(server, port);
         else
-            run_client(server, port);
+            run_tcp_client(server, port);
     }
     catch (cmdline_error const& e)
     {

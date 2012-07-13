@@ -75,7 +75,7 @@ using boost::make_shared;
 void run_server(string remote_ip, size_t port);
 void run_client(string local_ip , size_t port);
 
-void run_tcp_server(size_t port);
+void run_tcp_server(string server, size_t port);
 void run_tcp_client(string server, size_t port);
 
 #pragma pack(push, 1)

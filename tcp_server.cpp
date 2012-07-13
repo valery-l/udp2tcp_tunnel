@@ -11,13 +11,13 @@ struct server
 
     void on_accepted(tcp::socket& sock, tcp::endpoint const&, error_code const& /*err*/)
     {
-        assert(!socket_);
+        cout << "accepted some connection" << endl;
 
-        socket_  .reset(new tcp_fragment_socket(move(sock), bind(&server::on_receive, this, _1, _2)));
+        socket_  .reset(new tcp_fragment_socket(ref(sock), bind(&server::on_receive, this, _1, _2)));
         acceptor_.reset();
     }
 
-    void on_receive(const char* data, size_t size)
+    void on_receive(const void* data, size_t size)
     {
         assert(size == sizeof(test_msg_data));
         const test_msg_data* msg = reinterpret_cast<const test_msg_data*>(data);
@@ -30,7 +30,7 @@ private:
     scoped_ptr<tcp_fragment_socket>   socket_;
 };
 
-void run_tcp_server(size_t port)
+void run_tcp_server(string /*server*/, size_t port)
 {
     io_service io;
     server s(io, port);

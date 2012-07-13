@@ -4,49 +4,59 @@
 void connect(io_service& io, string server, short port, on_connected_f const& on_connected)
 {
     struct async_connector
-            : enable_shared_from_this<async_connector>
-            , noncopyable
+            : noncopyable
     {
+        static void request(io_service& io, string server, short port, on_connected_f const& on_connected)
+        {
+            // don't worry - the object will be deleted automatically after establishing connection
+            async_connector_ptr connector(new async_connector(io, on_connected));
+
+            connector->sock_.async_connect(
+                *asio_helper::first_endpoint<tcp>(io, server, port),
+                bind(&async_connector::on_connected, connector, _1));
+
+        }
+
+    private:
+
         typedef
             shared_ptr<async_connector>
             async_connector_ptr;
 
-        void create(io_servive& io, string server, short port, on_connected_f const& on_connected)
-        {
-            make_shared<async_connector>(io, server, port, cref(on_connected));
-        }
-
-    private:
-        async_connector(io_servive& io, string server, short port, on_connected_f const& on_connected)
+        async_connector(io_service& io, on_connected_f const& on_connected)
             : sock_         (io)
             , on_connected_ (on_connected)
         {
             assert(on_connected_);
-
-            sock_.async_connect(
-                        *asio_helper::first_endpoint(io, server, port),
-                        bind(&async_connector::on_connected, shared_from_this(), _1));
         }
 
-        static void on_connected(shared_ptr<async_connector> ptr, error_code const& err)
+        void on_connected(error_code const& err)
         {
-            on_connedcted_(ptr->sock, err);
+            if (err)
+            {
+                cout << err.message() << endl;
+                // todo
+                return;
+            }
+
+            on_connected_(sock_, err);
         }
+
 
     private:
         tcp::socket     sock_;
         on_connected_f  on_connected_;
     };
 
-    async_connector::create(io, server, port, on_connected);
+    async_connector::request(io, server, port, on_connected);
 }
 
 /// async_acceptor //////////////////////////////////////////////////////////////////////////
-
-async_acceptor::async_acceptor(io_service& io, size_t port, accept_f const& on_accept)
-    : acceptor_ (io_service, tcp::endpoint(tcp::v4(), port))
+async_acceptor::async_acceptor(io_service& io, size_t port, on_accept_f const& on_accept)
+    : acceptor_ (io, tcp::endpoint(tcp::v4(), port))
     , on_accept_(on_accept)
 {
+    start_async_accept();
 }
 
 void async_acceptor::start_async_accept()
@@ -54,11 +64,18 @@ void async_acceptor::start_async_accept()
     auto sock = make_shared<tcp::socket>(ref(acceptor_.get_io_service()));
     auto peer = make_shared<tcp::endpoint>();
 
-    acceptor_.async_accept(*sock, *peer, bind(&async_accpetor::on_accept, this, sock, peer, _1));
+    acceptor_.async_accept(*sock, *peer, bind(&async_acceptor::on_accept, this, sock, peer, _1));
 }
 
-void async_acceptor::on_accept(shared_ptr<tcp::socket> socket, shared_ptr<tcp::end_point> peer, error_code const& err)
+void async_acceptor::on_accept(shared_ptr<tcp::socket> socket, shared_ptr<tcp::endpoint> peer, error_code const& err)
 {
+    if (err)
+    {
+        cout << err.message() << endl;
+        // todo
+        return;
+    }
+
     start_async_accept();
     on_accept_(*socket, *peer, err);
 }

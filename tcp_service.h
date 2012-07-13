@@ -7,8 +7,8 @@ struct tcp_socket
 {
     typedef function<void(const void*, size_t)> on_receive_f;
 
-    tcp_socket(tcp::socket& moved_sock, on_receive_f const& on_receive)
-        : sock_         (move(moved_sock))
+    tcp_socket(tcp::socket& moveable_sock, on_receive_f const& on_receive)
+        : sock_         (move(moveable_sock))
         , ready_send_   (true)
         , on_receive_   (on_receive)
     {
@@ -97,8 +97,8 @@ struct tcp_fragment_socket
 {
     typedef tcp_socket::on_receive_f on_receive_f;
 
-    tcp_fragment_socket(tcp::socket& moved_sock, on_receive_f const& on_receive)
-        : sock_         (move(moved_sock), bind(&tcp_fragment_socket::on_receive, this, _1, _2))
+    tcp_fragment_socket(tcp::socket& moveable_sock, on_receive_f const& on_receive)
+        : sock_         (moveable_sock, bind(&tcp_fragment_socket::on_receive, this, _1, _2))
         , on_receive_   (on_receive)
     {
         const size_t reserve_msg_size = 1 << 16;
@@ -140,16 +140,19 @@ private:
     }
 
 private:
-    bool fill_buffer(size_t to_fill, const char*& data, size_t& received)
+    bool fill_buffer(size_t to_fill, const void*& data, size_t& received)
     {
         size_t offset = std::min(to_fill, received);
 
-        partial_msg_.insert(partial_msg_.end(), data, data + offset);
+        const char* char_data = reinterpret_cast<const char*>(data);
+        partial_msg_.insert(partial_msg_.end(), char_data, char_data + offset);
 
-        data        += offset;
+        char_data   += offset;
         received    -= offset;
 
-        return to_fill > offset;
+        data = char_data;
+
+        return to_fill == offset;
     }
 
 

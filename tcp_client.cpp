@@ -13,7 +13,8 @@ struct client
 private:
     void on_connected(tcp::socket& sock, error_code const& /*err*/)
     {
-        sock_.reset(new tcp_fragment_socket(move(sock), boost::bind(&client::on_receive, this, _1, _2)));
+        cout << "connected!" << endl;
+        sock_.reset(new tcp_fragment_socket(ref(sock), boost::bind(&client::on_receive, this, _1, _2)));
         cock_the_clock(1);
     }
 
@@ -34,7 +35,7 @@ private:
         cout << "client has sent: " << msg.counter << endl;
     }
 
-    void on_receive(const char* /*data*/, size_t /*size*/)
+    void on_receive(const void* /*data*/, size_t /*size*/)
     {
         // do something... or not
     }
@@ -45,7 +46,7 @@ private:
     deadline_timer                  timer_;
 };
 
-void run_tcp_client(string server, short port)
+void run_tcp_client(string server, size_t port)
 {
     io_service io;
     client cl(io, server, port);
