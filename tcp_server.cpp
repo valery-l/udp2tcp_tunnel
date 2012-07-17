@@ -5,12 +5,12 @@
 struct server
 {
     server(io_service& io, size_t port)
-        : acceptor_(async_acceptor::create(io, port, bind(&server::on_accepted, this, _1, _2, _3)))
+        : acceptor_(in_place(ref(io), port, bind(&server::on_accepted, this, _1, _2), trace_error))
         , timer_   (io)
     {
     }
 
-    void on_accepted(tcp::socket& moveable_sock, tcp::endpoint const&, error_code const& /*err*/)
+    void on_accepted(tcp::socket& moveable_sock, tcp::endpoint const&)
     {
         cout << "accepted some connection" << endl;
 
@@ -22,7 +22,7 @@ struct server
 
         acceptor_.reset();
 
-        timer_.expires_from_now(boost::posix_time::milliseconds(9300));
+        timer_.expires_from_now(boost::posix_time::milliseconds(7300));
         timer_.async_wait      (bind(&server::remove_waiting_socket, this, _1));
     }
 
@@ -37,7 +37,7 @@ struct server
     void on_disconnected()
     {
         socket_.reset();
-        cout << "Hey client, I've lost you!" << endl;
+        cout << "Ooops! Client, I've lost you!" << endl;
     }
 
     void remove_waiting_socket(error_code const& code)
@@ -49,13 +49,14 @@ struct server
             return;
         }
 
+        cout << "Arrivederci client" << endl;
         socket_.reset();
     }
 
 private:
-    shared_ptr<async_acceptor>      acceptor_;
-    optional<tcp_fragment_socket>   socket_;
-    deadline_timer                  timer_;
+    optional<network::async_acceptor>       acceptor_;
+    optional<network::tcp_fragment_wrapper> socket_ ;
+    deadline_timer                          timer_  ;
 };
 
 void run_tcp_server(string /*server*/, size_t port)

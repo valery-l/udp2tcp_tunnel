@@ -7,11 +7,11 @@ struct client
     client(io_service& io, string server, short port)
         : timer_(io)
     {
-        connect(io, server, port, bind(&client::on_connected, this, _1, _2));
+        network::connect(io, server, port, bind(&client::on_connected, this, _1), trace_error);
     }
 
 private:
-    void on_connected(tcp::socket& sock, error_code const& /*err*/)
+    void on_connected(tcp::socket& sock)
     {
         cout << "Bingo, connected!" << endl;
 
@@ -58,13 +58,13 @@ private:
     {
         cout << "Olala, remote host has been disconnected" << endl;
 
-//        timer_.cancel();
-//        sock_ .reset ();
+        timer_.cancel();
+        sock_ .reset ();
     }
 
 private:
-    optional<tcp_fragment_socket>   sock_; // temp solution
-    deadline_timer                  timer_;
+    optional<network::tcp_fragment_wrapper> sock_;
+    deadline_timer                          timer_;
 };
 
 void run_tcp_client(string server, size_t port)

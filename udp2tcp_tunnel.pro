@@ -35,7 +35,8 @@ SOURCES += main.cpp \
     udp_client.cpp \
     tcp_client.cpp \
     tcp_server.cpp \
-    connecting.cpp
+    connecting.cpp \
+    tcp_service.cpp
 
 HEADERS += \
     common.h \
