@@ -13,8 +13,14 @@ struct client
 private:
     void on_connected(tcp::socket& sock, error_code const& /*err*/)
     {
-        cout << "connected!" << endl;
-        sock_.reset(new tcp_fragment_socket(ref(sock), boost::bind(&client::on_receive, this, _1, _2)));
+        cout << "Bingo, connected!" << endl;
+
+        sock_ = in_place(
+            ref(sock),
+            bind(&client::on_receive, this, _1, _2),
+            bind(&client::on_disconnected, this),
+            trace_error);
+
         cock_the_clock(1);
     }
 
@@ -24,8 +30,15 @@ private:
         timer_.async_wait(bind(&client::on_tick, this, _1));
     }
 
-    void on_tick(const error_code& /*error*/)
+    void on_tick(const error_code& code)
     {
+        if (code)
+        {
+            cout << "supressing timer error" << endl;
+            //trace_error(code);
+            return;
+        }
+
         cock_the_clock(1);
 
         static size_t counter = 0;
@@ -38,11 +51,19 @@ private:
     void on_receive(const void* /*data*/, size_t /*size*/)
     {
         // do something... or not
+        cout << "Some data has been received - didn't expect!" << endl;
+    }
+
+    void on_disconnected()
+    {
+        cout << "Olala, remote host has been disconnected" << endl;
+
+//        timer_.cancel();
+//        sock_ .reset ();
     }
 
 private:
-    // todo: optional or not optional ???
-    scoped_ptr<tcp_fragment_socket> sock_; // temp solution
+    optional<tcp_fragment_socket>   sock_; // temp solution
     deadline_timer                  timer_;
 };
 

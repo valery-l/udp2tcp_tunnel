@@ -1,18 +1,18 @@
 TEMPLATE = app
 
-CONFIG += debug_and_release
+message($$CONFIG)
 
-BIN_PATH = ../bin/$$BIN_NAME
+BIN_PATH = ../bin
 
 #CONFIG(debug)   : BUILD_PATH = $$join(BIN_PATH,,,"/debug")
 #CONFIG(release) : BUILD_PATH = $$join(BIN_PATH,,,"/release")
 
-CONFIG(debug){
+debug{
     BUILD_PATH = $$join(BIN_PATH,,,"/debug")
     message("Debug")
 }
 
-CONFIG(release){
+release{
     BUILD_PATH = $$join(BIN_PATH,,,"/release")
     message("Release")
 }
@@ -26,9 +26,8 @@ RCC_DIR     = $$BUILD_PATH/misc
 CONFIG += console
 CONFIG -= qt
 
-
 LIBS += -lboost_system -lpthread -lboost_thread
-QMAKE_CXXFLAGS += -std=c++0x
+QMAKE_CXXFLAGS += -std=c++0x -g3
 QMAKE_LFLAGS += -static -static-libgcc -static-libstdc++
 
 SOURCES += main.cpp \
@@ -43,5 +42,6 @@ HEADERS += \
     tcp_service.h \
     asio_helper.h \
     connecting.h \
-    c++_utils.h
+    cpp_utils.h \
+    posix_stacktrace.h
 

@@ -29,6 +29,8 @@
 #include <boost/utility/in_place_factory.hpp>
 #include <boost/utility/typed_in_place_factory.hpp>
 
+#include "posix_stacktrace.h"
+
 using std::cout;
 using std::endl;
 
@@ -89,6 +91,12 @@ struct test_msg_data
     }
 };
 #pragma pack(pop)
+
+inline void trace_error(boost::system::error_code const& code)
+{
+    cout << "Err! Msg: " << code.message() << "; category: " << code.category().name() << "; value: " << code.value() << endl;
+    //print_stacktrace();
+}
 
 
 

@@ -5,14 +5,31 @@
 
 struct tcp_socket
 {
-    typedef function<void(const void*, size_t)> on_receive_f;
+    typedef function<void(const void*, size_t)>     on_receive_f     ;
+    typedef function<void()                   >     on_disconnected_f;
+    typedef function<void(error_code const&)  >     on_error_t       ;
 
-    tcp_socket(tcp::socket& moveable_sock, on_receive_f const& on_receive)
-        : sock_         (move(moveable_sock))
+    tcp_socket(
+        tcp::socket& moveable_sock,
+        on_receive_f        const& on_receive,
+        on_disconnected_f   const& on_discon,
+        on_error_t          const& on_error)
+
+        : transport_    (new transport(move(moveable_sock)))
         , ready_send_   (true)
+
         , on_receive_   (on_receive)
+        , on_discon_    (on_discon )
+        , on_error_     (on_error  )
     {
-        sock_.async_read_some(buffer(buf_), bind(&tcp_socket::on_receive, this, _1, _2));
+        // need to assign for receiving data, even socket is only for sending - it allows to receive disconnect notification "boost::asio::error::misc_errors::eof"
+        sock().async_read_some(buffer(buf_), bind(&tcp_socket::on_receive, this, transport_, _1, _2));
+    }
+
+    ~tcp_socket()
+    {
+        transport_->alive = false;
+        transport_->sock.shutdown(tcp::socket::shutdown_both);
     }
 
     void send(const void* data, size_t size)
@@ -23,50 +40,89 @@ struct tcp_socket
 
         if (msgs_.empty() && ready_send_)
         {
-            async_write(sock_, buf, bind(&tcp_socket::on_send, this, _1, _2));
+            async_write(
+                sock(),
+                buf,
+                bind(&tcp_socket::on_send, this, transport_, _1, _2));
+
             ready_send_ = false;
         }
         else
             msgs_.push_back(buf);
     }
 
+// tcp transport
 private:
-    void on_send(const error_code& error,  size_t)
+    struct transport
     {
-        if (error)
+        transport(tcp::socket&& sock)
+            : alive(true)
+            , sock (forward<tcp::socket>(sock))
         {
-            cout << error.message() << endl;
-            // todo
+        }
+
+        bool        alive;
+        tcp::socket sock ;
+    };
+
+    typedef shared_ptr<transport> transport_ptr;
+
+private:
+    tcp::socket& sock()
+    {
+        return transport_->sock;
+    }
+
+private:
+    void on_send(transport_ptr transport, const error_code& code,  size_t)
+    {
+        if (!transport->alive)
+            return;
+
+        if (code)
+        {
+            on_error_(code);
             return;
         }
 
         if (!msgs_.empty())
         {
             buf_seq_ = buf_seq_t(forward<msg_list_t>(msgs_));
-            msgs_ = msg_list_t();
+            msgs_    = msg_list_t();
 
-            async_write(sock_, buf_seq_, bind(&tcp_socket::on_send, this, _1, _2));
+            async_write(
+                sock(),
+                buf_seq_,
+                bind(&tcp_socket::on_send, this, transport_, _1, _2));
         }
         else
             ready_send_ = true;
     }
 
 private:
-    void on_receive(const error_code& error, size_t bytes_transferred)
+    void on_receive(transport_ptr transport, const error_code& code, size_t bytes_transferred)
     {
-        if (error)
+        if (!transport->alive)
+            return;
+
+        if (code)
         {
-            cout << error.message() << endl;
-            // todo
+            if (code.category() == error::misc_category &&
+                code.value   () == error::eof)
+
+                on_discon_();
+            else
+                on_error_(code);
+
             return;
         }
 
         on_receive_(&buf_[0], bytes_transferred);
-        sock_.async_read_some(buffer(buf_), bind(&tcp_socket::on_receive, this, _1, _2));
+        sock().async_read_some(buffer(buf_), bind(&tcp_socket::on_receive, this, transport_, _1, _2));
     }
 
 private:
-    tcp::socket sock_;
+    transport_ptr transport_;
 
 // for sending
 private:
@@ -90,16 +146,28 @@ private:
 
     on_receive_f                on_receive_;
     std::array<char, buf_size_> buf_;
-};
 
+// other notifications
+private:
+    on_disconnected_f   on_discon_;
+    on_error_t          on_error_;
+};
 
 struct tcp_fragment_socket
 {
-    typedef tcp_socket::on_receive_f on_receive_f;
+    typedef tcp_socket::on_receive_f        on_receive_f;
+    typedef tcp_socket::on_disconnected_f   on_disconnected_f;
+    typedef tcp_socket::on_error_t          on_error_t;
 
-    tcp_fragment_socket(tcp::socket& moveable_sock, on_receive_f const& on_receive)
-        : sock_         (moveable_sock, bind(&tcp_fragment_socket::on_receive, this, _1, _2))
+    tcp_fragment_socket(
+        tcp::socket& moveable_sock,
+        on_receive_f        const& on_receive,
+        on_disconnected_f   const& on_discon,
+        on_error_t          const& on_error)
+
+        : sock_         (moveable_sock, bind(&tcp_fragment_socket::on_receive, this, _1, _2), on_discon, on_error)
         , on_receive_   (on_receive)
+
     {
         const size_t reserve_msg_size = 1 << 16;
         partial_msg_.reserve(reserve_msg_size);

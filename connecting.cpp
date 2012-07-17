@@ -52,11 +52,18 @@ void connect(io_service& io, string server, short port, on_connected_f const& on
 }
 
 /// async_acceptor //////////////////////////////////////////////////////////////////////////
+auto async_acceptor::create(io_service& io, size_t port, on_accept_f const& on_accept) -> acceptor_ptr
+{
+    acceptor_ptr acceptor(new async_acceptor(ref(io), port, cref(on_accept)));
+    acceptor->start_async_accept();
+
+    return acceptor;
+}
+
 async_acceptor::async_acceptor(io_service& io, size_t port, on_accept_f const& on_accept)
     : acceptor_ (io, tcp::endpoint(tcp::v4(), port))
     , on_accept_(on_accept)
 {
-    start_async_accept();
 }
 
 void async_acceptor::start_async_accept()
@@ -64,15 +71,23 @@ void async_acceptor::start_async_accept()
     auto sock = make_shared<tcp::socket>(ref(acceptor_.get_io_service()));
     auto peer = make_shared<tcp::endpoint>();
 
-    acceptor_.async_accept(*sock, *peer, bind(&async_acceptor::on_accept, this, sock, peer, _1));
+    acceptor_.async_accept(*sock, *peer, bind(&async_acceptor::on_accept, this, shared_from_this(), sock, peer, _1));
 }
 
-void async_acceptor::on_accept(shared_ptr<tcp::socket> socket, shared_ptr<tcp::endpoint> peer, error_code const& err)
+void async_acceptor::on_accept(acceptor_ptr that, shared_ptr<tcp::socket> socket, shared_ptr<tcp::endpoint> peer, error_code const& err)
 {
     if (err)
     {
-        cout << err.message() << endl;
-        // todo
+        if (err.category() == boost::system::system_category() &&
+            err.value   () == boost::system::errc::operation_canceled)
+        {
+            that;
+            cout << "accept operation was canceled" << endl;
+            cout << "I've received this notification although I have alive acceptor" << endl;
+        }
+        else
+            cout << "unexpected error: " << err.message() << endl;
+
         return;
     }
 
