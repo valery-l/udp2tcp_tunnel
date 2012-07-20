@@ -1,23 +1,20 @@
 #include "common.h"
 #include "connecting.h"
+#include "asio_helper.h"
 
 namespace network
 {
 
-void connect(io_service& io, string server, short port, on_connected_f const& on_connected, on_error_f const& on_error)
+void connect(io_service& io, endpoint const& remote_server, on_connected_f const& on_connected, on_error_f const& on_error)
 {
     struct async_connector
             : noncopyable
     {
-        static void request(io_service& io, string server, short port, on_connected_f const& on_connected, on_error_f const& on_error)
+        static void request(io_service& io, endpoint const& remote_server, on_connected_f const& on_connected, on_error_f const& on_error)
         {
             // don't worry - the object will be deleted automatically after establishing connection
             ptr_t connector(new async_connector(io, on_connected, on_error));
-
-            connector->sock_.async_connect(
-                *asio_helper::first_endpoint<tcp>(io, server, port),
-                bind(&async_connector::on_connected, connector, _1));
-
+            connector->sock_.async_connect(remote_server, bind(&async_connector::on_connected, connector, _1));
         }
 
     private:
@@ -49,7 +46,7 @@ void connect(io_service& io, string server, short port, on_connected_f const& on
         on_error_f      on_error_;
     };
 
-    async_connector::request(io, server, port, on_connected, on_error);
+    async_connector::request(io, remote_server, on_connected, on_error);
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -62,9 +59,9 @@ struct underlying_acceptor
     typedef shared_ptr<underlying_acceptor>  ptr_t;
 
 public:
-    static ptr_t create(io_service& io, size_t port, network::on_accept_f const& on_accept, network::on_error_f const& on_error)
+    static ptr_t create(io_service& io, endpoint const& local_bind, network::on_accept_f const& on_accept, network::on_error_f const& on_error)
     {
-        ptr_t acceptor(new underlying_acceptor(ref(io), port, boost::cref(on_accept), boost::cref(on_error)));
+        ptr_t acceptor(new underlying_acceptor(ref(io), local_bind, boost::cref(on_accept), boost::cref(on_error)));
         acceptor->start_async_accept();
 
         return acceptor;
@@ -77,14 +74,15 @@ public:
     }
 
 private:
-    underlying_acceptor(io_service& io, size_t port, network::on_accept_f const& on_accept, network::on_error_f const& on_error)
+    underlying_acceptor(io_service& io, endpoint const& local_bind, network::on_accept_f const& on_accept, network::on_error_f const& on_error)
 
         : alive_    (true)
-        , acceptor_ (io, tcp::endpoint(tcp::v4(), port))
+        , acceptor_ (io, local_bind)
 
         , on_accept_(on_accept)
         , on_error_ (on_error )
     {
+        acceptor_.set_option(ip::tcp::acceptor::reuse_address(true));
     }
 
     void start_async_accept()
@@ -120,8 +118,8 @@ private:
 
 ////////////////////////////////////////////////////////////////////////
 // async_acceptor
-async_acceptor::async_acceptor(io_service& io, size_t port, on_accept_f const& on_accept, on_error_f const& on_error)
-    : acceptor_(underlying_acceptor::create(io, port, on_accept, on_error))
+async_acceptor::async_acceptor(io_service& io, endpoint const& local_bind, on_accept_f const& on_accept, on_error_f const& on_error)
+    : acceptor_(underlying_acceptor::create(io, local_bind, on_accept, on_error))
 {
 }
 

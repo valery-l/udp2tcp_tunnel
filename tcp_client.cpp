@@ -1,13 +1,15 @@
 #include "common.h"
 #include "asio_helper.h"
 #include "tcp_service.h"
+#include "udp_service.h"
 
 struct client
 {
     client(io_service& io, string server, short port)
-        : timer_(io)
+        : udp_sock_ (in_place(ref(io), network::endpoint("", port + 1), none, bind(&client::on_receive, this, _1, _2), trace_error))
+        , timer_    (io)
     {
-        network::connect(io, server, port, bind(&client::on_connected, this, _1), trace_error);
+        network::connect(io, network::endpoint(server, port), bind(&client::on_connected, this, _1), trace_error);
     }
 
 private:
@@ -15,7 +17,7 @@ private:
     {
         cout << "Bingo, connected!" << endl;
 
-        sock_ = in_place(
+        tcp_sock_ = in_place(
             ref(sock),
             bind(&client::on_receive, this, _1, _2),
             bind(&client::on_disconnected, this),
@@ -44,14 +46,16 @@ private:
         static size_t counter = 0;
         test_msg_data msg(++counter);
 
-        sock_->send(&msg, sizeof(msg));
+        tcp_sock_->send(&msg, sizeof(msg));
         cout << "client has sent: " << msg.counter << endl;
     }
 
-    void on_receive(const void* /*data*/, size_t /*size*/)
+    void on_receive(const void* data, size_t size)
     {
-        // do something... or not
-        cout << "Some data has been received - didn't expect!" << endl;
+        assert(size == sizeof(test_msg_data));
+
+        test_msg_data const& msg = *reinterpret_cast<test_msg_data const*>(data);
+        cout << "Received back from server: " << msg.counter << endl;
     }
 
     void on_disconnected()
@@ -59,11 +63,13 @@ private:
         cout << "Olala, remote host has been disconnected" << endl;
 
         timer_.cancel();
-        sock_ .reset ();
+        tcp_sock_ .reset();
+        udp_sock_ .reset();
     }
 
 private:
-    optional<network::tcp_fragment_wrapper> sock_;
+    optional<network::tcp_fragment_wrapper> tcp_sock_;
+    optional<network::udp_socket          > udp_sock_;
     deadline_timer                          timer_;
 };
 

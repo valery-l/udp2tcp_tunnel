@@ -3,12 +3,12 @@
 #include "connecting.h"
 #include "asio_helper.h"
 #include "connecting.h"
+#include "net_common.h"
 
 namespace network
 {
 
-typedef function<void(const void*, size_t)>     on_receive_f     ;
-typedef function<void()                   >     on_disconnected_f;
+typedef function<void ()>   on_disconnected_f;
 
 //////////////////////////////////////////////////
 // socket for sending and receiving streaming data
@@ -20,9 +20,16 @@ struct tcp_socket
 
     void send(const void* data, size_t size);
 
+private:
+    void on_error(error_code const& code);
+
 // tcp transport
 private:
-    shared_ptr<struct underlying_transport> transport_;
+    on_disconnected_f   on_discon_;
+    on_error_f          on_error_;
+
+private:
+    shared_ptr<underlying_transport> transport_;
 };
 
 

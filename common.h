@@ -21,6 +21,7 @@
 #include <boost/format.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/noncopyable.hpp>
+#include <boost/none.hpp>
 #include <boost/optional.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/ref.hpp>
@@ -62,6 +63,8 @@ using boost::is_any_of;
 
 using boost::enable_shared_from_this;
 using boost::noncopyable;
+
+using boost::none;
 
 using boost::system::error_code;
 using boost::asio::ip::tcp;

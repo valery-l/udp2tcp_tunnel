@@ -1,11 +1,13 @@
 #include "common.h"
 #include "connecting.h"
 #include "tcp_service.h"
+#include "udp_service.h"
 
 struct server
 {
     server(io_service& io, size_t port)
-        : acceptor_(in_place(ref(io), port, bind(&server::on_accepted, this, _1, _2), trace_error))
+        : acceptor_(in_place(ref(io), network::endpoint("", port), bind(&server::on_accepted, this, _1, _2), trace_error))
+        , udp_sock_(in_place(ref(io), none, network::endpoint("", port + 1), network::on_receive_f(0), trace_error))
         , timer_   (io)
     {
     }
@@ -14,7 +16,7 @@ struct server
     {
         cout << "accepted some connection" << endl;
 
-        socket_ = in_place(
+        tcp_sock_ = in_place(
             ref(moveable_sock),
             bind(&server::on_receive, this, _1, _2),
             bind(&server::on_disconnected, this),
@@ -32,11 +34,13 @@ struct server
         const test_msg_data* msg = reinterpret_cast<const test_msg_data*>(data);
 
         cout << "server has received: " << msg->counter << endl;
+        udp_sock_->send(&msg, sizeof(msg));
     }
 
     void on_disconnected()
     {
-        socket_.reset();
+        tcp_sock_.reset();
+        udp_sock_.reset();
         cout << "Ooops! Client, I've lost you!" << endl;
     }
 
@@ -50,12 +54,13 @@ struct server
         }
 
         cout << "Arrivederci client" << endl;
-        socket_.reset();
+        tcp_sock_.reset();
     }
 
 private:
     optional<network::async_acceptor>       acceptor_;
-    optional<network::tcp_fragment_wrapper> socket_ ;
+    optional<network::tcp_fragment_wrapper> tcp_sock_;
+    optional<network::udp_socket          > udp_sock_;
     deadline_timer                          timer_  ;
 };
 

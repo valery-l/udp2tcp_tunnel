@@ -36,7 +36,8 @@ SOURCES += main.cpp \
     tcp_client.cpp \
     tcp_server.cpp \
     connecting.cpp \
-    tcp_service.cpp
+    tcp_service.cpp \
+    udp_service.cpp
 
 HEADERS += \
     common.h \
@@ -44,5 +45,9 @@ HEADERS += \
     asio_helper.h \
     connecting.h \
     cpp_utils.h \
-    posix_stacktrace.h
+    posix_stacktrace.h \
+    underlying_transport_impl.h \
+    net_common.h \
+    udp_service.h \
+    transfer_strategy.h
 
