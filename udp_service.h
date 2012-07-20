@@ -1,5 +1,6 @@
 #pragma once
 #include "net_common.h"
+#include "transfer_strategy.h"
 
 namespace network
 {
@@ -18,6 +19,7 @@ struct udp_socket
     void send(const void* data, size_t size);
 
 private:
+    transfer_strategy<udp>           strat_;
     shared_ptr<underlying_transport> transport_;
 };
 

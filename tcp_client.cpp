@@ -6,7 +6,7 @@
 struct client
 {
     client(io_service& io, string server, short port)
-        : udp_sock_ (in_place(ref(io), network::endpoint("", port + 1), none, bind(&client::on_receive, this, _1, _2), trace_error))
+        : udp_sock_ (in_place(ref(io), network::endpoint(server, port + 1), none, bind(&client::on_receive, this, _1, _2), trace_error))
         , timer_    (io)
     {
         network::connect(io, network::endpoint(server, port), bind(&client::on_connected, this, _1), trace_error);
@@ -28,7 +28,7 @@ private:
 
     void cock_the_clock(size_t seconds)
     {
-        timer_.expires_from_now(boost::posix_time::seconds(seconds));
+        timer_.expires_from_now(boost::posix_time::milliseconds(10 * seconds));
         timer_.async_wait(bind(&client::on_tick, this, _1));
     }
 
@@ -52,6 +52,9 @@ private:
 
     void on_receive(const void* data, size_t size)
     {
+        if (size != sizeof(test_msg_data))
+            cout << "Size is wrong, got " << size << " should be: " << sizeof(test_msg_data) << endl;
+
         assert(size == sizeof(test_msg_data));
 
         test_msg_data const& msg = *reinterpret_cast<test_msg_data const*>(data);

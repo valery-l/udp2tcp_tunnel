@@ -9,18 +9,12 @@ namespace
 {
 udp::socket connected_udp_socket(
     io_service& io,
-    optional<network::endpoint> const& local_bind,
-    optional<network::endpoint> const& remote_server)
+    optional<network::endpoint> const& local_bind)
 {
-    udp::socket sock = local_bind ? udp::socket(io, *local_bind) : udp::socket(io);
+    udp::socket sock = udp::socket(io, local_bind ? udp::endpoint(*local_bind) : udp::endpoint(ip::udp::v4(), 0));
 
-//    if (local_bind)
-//        sock.bind(*local_bind);
-
-    if (remote_server)
-        sock.connect(*remote_server);
-
-    sock.set_option(udp::socket::broadcast(true));
+    sock.set_option(udp::socket::reuse_address(true));
+    sock.set_option(udp::socket::broadcast    (true));
     return sock;
 }
 
@@ -37,15 +31,13 @@ udp_socket::udp_socket(
     on_receive_f const& on_receive,
     on_error_f   const& on_error)
 
-    : transport_(
+    :  strat_    (remote_server ? *remote_server : endpoint())
+    ,  transport_(
         underlying_transport_impl<udp>::create(
-            move(
-                connected_udp_socket(
-                    io,
-                    local_bind,
-                    remote_server)),
+            move(connected_udp_socket(io, local_bind)),
             on_receive,
-            on_error))
+            on_error,
+            strat_))
 {
 }
 

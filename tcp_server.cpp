@@ -7,7 +7,7 @@ struct server
 {
     server(io_service& io, size_t port)
         : acceptor_(in_place(ref(io), network::endpoint("", port), bind(&server::on_accepted, this, _1, _2), trace_error))
-        , udp_sock_(in_place(ref(io), none, network::endpoint("", port + 1), network::on_receive_f(0), trace_error))
+        , udp_sock_(in_place(ref(io), none, network::endpoint("", port + 1), network::on_receive_f(), trace_error))
         , timer_   (io)
     {
     }
@@ -34,7 +34,7 @@ struct server
         const test_msg_data* msg = reinterpret_cast<const test_msg_data*>(data);
 
         cout << "server has received: " << msg->counter << endl;
-        udp_sock_->send(&msg, sizeof(msg));
+        udp_sock_->send(msg, size);
     }
 
     void on_disconnected()
@@ -55,6 +55,7 @@ struct server
 
         cout << "Arrivederci client" << endl;
         tcp_sock_.reset();
+        udp_sock_.reset();
     }
 
 private:

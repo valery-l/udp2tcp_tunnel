@@ -87,6 +87,7 @@ void run_tcp_client(string server, size_t port);
 struct test_msg_data
 {
     size_t counter;
+    char data[1 << 12];
 
     test_msg_data(size_t counter)
         : counter(counter)

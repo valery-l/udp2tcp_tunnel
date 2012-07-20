@@ -21,10 +21,10 @@ struct underlying_transport_impl
     typedef async_transfer_strategy     strat_t;
     typedef typename protocol::socket   socket_t;
 
-    static ptr_t create(socket_t&& sock, on_receive_f const& on_receive, on_error_f const& on_error)
+    static ptr_t create(socket_t&& sock, on_receive_f const& on_receive, on_error_f const& on_error, strat_t const& strat = strat_t())
     {
-        ptr_t ptr(new this_t(forward<socket_t>(sock), on_receive, on_error));
-        strat_t::async_recv(ptr->sock_, buffer(ptr->buf_), bind(&this_t::on_receive, ptr, _1, _2));
+        ptr_t ptr(new this_t(forward<socket_t>(sock), on_receive, on_error, strat));
+        strat.async_recv(ptr->sock_, buffer(ptr->buf_), bind(&this_t::on_receive, ptr, _1, _2));
 
         return ptr;
     }
@@ -32,7 +32,7 @@ struct underlying_transport_impl
     void close_connection()
     {
         alive_ = false;
-        sock_.shutdown(socket_t::shutdown_both);
+        sock_.cancel();
     }
 
     void send(const void* data, size_t size)
@@ -43,7 +43,7 @@ struct underlying_transport_impl
 
         if (msgs_.empty() && ready_send_)
         {
-            strat_t::async_send(
+            strat_.async_send(
                 sock_,
                 buf,
                 bind(&this_t::on_send, this->shared_from_this(), _1, _2));
@@ -55,14 +55,16 @@ struct underlying_transport_impl
     }
 
 private:
-    underlying_transport_impl(socket_t&& sock, on_receive_f const& on_receive, on_error_f const& on_error)
+    underlying_transport_impl(socket_t&& sock, on_receive_f const& on_receive, on_error_f const& on_error, strat_t const& strat)
         : alive_            (true)
         , sock_             (forward<socket_t>(sock))
+        , strat_            (strat)
         , ready_send_       (true)
         , on_receive_       (on_receive)
         , on_error_         (on_error)
     {
     }
+
 
 private:
     void on_send(const error_code& code,  size_t)
@@ -81,7 +83,7 @@ private:
             buf_seq_ = buf_seq_t(forward<msg_list_t>(msgs_));
             msgs_    = msg_list_t();
 
-            strat_t::async_send(
+            strat_.async_send(
                 sock_,
                 buf_seq_,
                 bind(&this_t::on_send, this->shared_from_this(), _1, _2));
@@ -104,15 +106,20 @@ private:
             return;
         }
 
+        cout << "bytes_transferred: " << bytes_transferred << endl;
+
         if (on_receive_)
             on_receive_(&buf_[0], bytes_transferred);
 
-        strat_t::async_recv(sock_, buffer(buf_), bind(&this_t::on_receive, this->shared_from_this(), _1, _2));
+        strat_.async_recv(sock_, buffer(buf_), bind(&this_t::on_receive, this->shared_from_this(), _1, _2));
     }
 
 private:
     bool        alive_;
     socket_t    sock_ ;
+
+private:
+    strat_t const& strat_;
 
 private:
     typedef
@@ -131,7 +138,7 @@ private:
 
     // for receiving
 private:
-    static const size_t         buf_size_ = 1 << 16;
+    static const size_t         buf_size_ = 1 << 18;
 
     on_receive_f                on_receive_;
     std::array<char, buf_size_> buf_;

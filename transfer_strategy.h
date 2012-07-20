@@ -26,17 +26,25 @@ struct transfer_strategy<tcp>
 template<>
 struct transfer_strategy<udp>
 {
-    template<class buffer, class callback>
-    static void async_send(udp::socket& sock, buffer const& buf, callback const& cb)
+    transfer_strategy(udp::endpoint const& remote_peer)
+        : remote_peer_(remote_peer)
     {
-        sock.async_send(buf, cb);
     }
 
     template<class buffer, class callback>
-    static void async_recv(udp::socket& sock, buffer const& buf, callback const& cb)
+    void async_send(udp::socket& sock, buffer const& buf, callback const& cb) const
+    {
+        sock.async_send_to(buf, remote_peer_, cb);
+    }
+
+    template<class buffer, class callback>
+    void async_recv(udp::socket& sock, buffer const& buf, callback const& cb) const
     {
         sock.async_receive(buf, cb);
     }
+
+private:
+    udp::endpoint remote_peer_;
 };
 
 } // namespace network
