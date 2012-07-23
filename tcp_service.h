@@ -15,6 +15,7 @@ typedef function<void ()>   on_disconnected_f;
 struct tcp_socket
     : noncopyable
 {
+    // can't use r-value ref, as it's not supported by boost::in_place and has problems with boost::function
     tcp_socket(tcp::socket& moveable_sock, on_receive_f const&, on_disconnected_f const&, on_error_f const&);
    ~tcp_socket();
 

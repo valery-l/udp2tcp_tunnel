@@ -72,7 +72,7 @@ public:
     }
 
     explicit shared_const_buffers_seq(buffer_seq_t&& seq)
-        : data_(make_shared<buffer_seq_t>(std::forward<buffer_seq_t>(seq)))
+        : data_(make_shared<buffer_seq_t>(forward<buffer_seq_t>(seq)))
     {
     }
 

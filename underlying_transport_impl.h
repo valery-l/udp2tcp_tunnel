@@ -23,6 +23,10 @@ struct underlying_transport_impl
 
     static ptr_t create(socket_t&& sock, on_receive_f const& on_receive, on_error_f const& on_error, strat_t const& strat = strat_t())
     {
+        const size_t buf_size = 256 * 1024;
+        sock.set_option(typename protocol::socket::send_buffer_size   (buf_size));
+        sock.set_option(typename protocol::socket::receive_buffer_size(buf_size));
+
         ptr_t ptr(new this_t(forward<socket_t>(sock), on_receive, on_error, strat));
         strat.async_recv(ptr->sock_, buffer(ptr->buf_), bind(&this_t::on_receive, ptr, _1, _2));
 
@@ -35,23 +39,41 @@ struct underlying_transport_impl
         sock_.cancel();
     }
 
-    void send(const void* data, size_t size)
+    void send_impl(const void *data, size_t size, udp*)
     {
         asio_helper::shared_const_buffer buf(
-            static_cast<const char*>(data),
-            static_cast<const char*>(data) + size);
+                    static_cast<const char*>(data),
+                    static_cast<const char*>(data) + size);
+
+        strat_.async_send(
+            sock_,
+            buf,
+            bind(&this_t::on_send, this->shared_from_this(), _1, _2));
+    }
+
+    void send_impl(const void *data, size_t size, tcp*)
+    {
+        asio_helper::shared_const_buffer buf(
+                    static_cast<const char*>(data),
+                    static_cast<const char*>(data) + size);
 
         if (msgs_.empty() && ready_send_)
         {
             strat_.async_send(
-                sock_,
-                buf,
-                bind(&this_t::on_send, this->shared_from_this(), _1, _2));
+                        sock_,
+                        buf,
+                        bind(&this_t::on_send, this->shared_from_this(), _1, _2));
 
             ready_send_ = false;
         }
         else
             msgs_.push_back(buf);
+    }
+
+
+    void send(const void* data, size_t size)
+    {
+        send_impl(data, size, (protocol*)0);
     }
 
 private:
@@ -80,6 +102,8 @@ private:
 
         if (!msgs_.empty())
         {
+            cout << "Pack of " << msgs_.size() << " message(s)" << endl;
+
             buf_seq_ = buf_seq_t(forward<msg_list_t>(msgs_));
             msgs_    = msg_list_t();
 
@@ -106,7 +130,7 @@ private:
             return;
         }
 
-        cout << "bytes_transferred: " << bytes_transferred << endl;
+        //cout << "bytes_transferred: " << bytes_transferred << endl;
 
         if (on_receive_)
             on_receive_(&buf_[0], bytes_transferred);

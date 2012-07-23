@@ -7,7 +7,7 @@ struct server
 {
     server(io_service& io, size_t port)
         : acceptor_(in_place(ref(io), network::endpoint("", port), bind(&server::on_accepted, this, _1, _2), trace_error))
-        , udp_sock_(in_place(ref(io), none, network::endpoint("", port + 1), network::on_receive_f(), trace_error))
+        , udp_sock_(in_place(ref(io), none, network::endpoint("", port + 1), bind(&server::on_receive, this, _1, _2)/*network::on_receive_f()*/, trace_error))
         , timer_   (io)
     {
     }
@@ -15,6 +15,24 @@ struct server
     void on_accepted(tcp::socket& moveable_sock, tcp::endpoint const&)
     {
         cout << "accepted some connection" << endl;
+
+        error_code code;
+
+        udp::socket::receive_buffer_size rbs;
+        moveable_sock.get_option(rbs, code);
+
+        cout << "TCP Recv buffer: ";
+        if (code) cout << "Error: " << code.message();
+        else      cout << rbs.value();
+        cout << endl;
+
+        cout << "TCP Send buffer: ";
+        udp::socket::send_buffer_size sbs;
+        moveable_sock.get_option(sbs);
+
+        if (code) cout << "Error: " << code.message();
+        else      cout << sbs.value();
+        cout << endl;
 
         tcp_sock_ = in_place(
             ref(moveable_sock),
@@ -30,6 +48,9 @@ struct server
 
     void on_receive(const void* data, size_t size)
     {
+        if (size != sizeof(test_msg_data))
+            cout << "Expected size is: " << sizeof(test_msg_data) << "; received: " << size << endl;
+
         assert(size == sizeof(test_msg_data));
         const test_msg_data* msg = reinterpret_cast<const test_msg_data*>(data);
 

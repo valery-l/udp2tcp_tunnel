@@ -13,6 +13,24 @@ udp::socket connected_udp_socket(
 {
     udp::socket sock = udp::socket(io, local_bind ? udp::endpoint(*local_bind) : udp::endpoint(ip::udp::v4(), 0));
 
+    error_code code;
+
+    udp::socket::receive_buffer_size rbs;
+    sock.get_option(rbs, code);
+
+    cout << "Recv buffer. ";
+    if (code) cout << "Error: " << code.message();
+    else      cout << rbs.value();
+    cout << endl;
+
+    cout << "Send buffer. ";
+    udp::socket::send_buffer_size sbs;
+    sock.get_option(sbs);
+
+    if (code) cout << "Error: " << code.message();
+    else      cout << sbs.value();
+    cout << endl;
+
     sock.set_option(udp::socket::reuse_address(true));
     sock.set_option(udp::socket::broadcast    (true));
     return sock;

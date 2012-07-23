@@ -5,6 +5,7 @@
 namespace network
 {
 
+// can't use r-value ref on sock here, as it's not supported by boost::in_place and has problems with boost::function
 typedef function<void (tcp::socket&)>                       on_connected_f  ; // moveable socket
 typedef function<void (tcp::socket&, tcp::endpoint const&)> on_accept_f     ; // moveable socket
 

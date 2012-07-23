@@ -10,6 +10,7 @@ struct client
         , timer_    (io)
     {
         network::connect(io, network::endpoint(server, port), bind(&client::on_connected, this, _1), trace_error);
+        //cock_the_clock(1);
     }
 
 private:
@@ -28,7 +29,8 @@ private:
 
     void cock_the_clock(size_t seconds)
     {
-        timer_.expires_from_now(boost::posix_time::milliseconds(10 * seconds));
+        // test
+        timer_.expires_from_now(boost::posix_time::milliseconds(100 * seconds));
         timer_.async_wait(bind(&client::on_tick, this, _1));
     }
 
@@ -46,6 +48,7 @@ private:
         static size_t counter = 0;
         test_msg_data msg(++counter);
 
+        //udp_sock_->send(&msg, sizeof(msg));
         tcp_sock_->send(&msg, sizeof(msg));
         cout << "client has sent: " << msg.counter << endl;
     }
@@ -59,6 +62,11 @@ private:
 
         test_msg_data const& msg = *reinterpret_cast<test_msg_data const*>(data);
         cout << "Received back from server: " << msg.counter << endl;
+
+        if (last_counter_)
+            assert(msg.counter - *last_counter_ == 1);
+
+        last_counter_ = msg.counter;
     }
 
     void on_disconnected()
@@ -74,6 +82,7 @@ private:
     optional<network::tcp_fragment_wrapper> tcp_sock_;
     optional<network::udp_socket          > udp_sock_;
     deadline_timer                          timer_;
+    optional<size_t>                        last_counter_;
 };
 
 void run_tcp_client(string server, size_t port)
