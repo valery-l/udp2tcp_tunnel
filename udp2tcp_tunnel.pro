@@ -47,6 +47,5 @@ HEADERS += \
     cpp_utils.h \
     underlying_transport_impl.h \
     net_common.h \
-    udp_service.h \
-    transfer_strategy.h
+    udp_service.h
 

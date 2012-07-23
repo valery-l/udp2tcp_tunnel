@@ -7,15 +7,6 @@ namespace network
 typedef function<void (const void*, size_t)>    on_receive_f;
 typedef function<void (error_code const&)>      on_error_f  ;
 
-struct underlying_transport
-{
-    // receive function is a callback
-    virtual void send               (const void* data, size_t size) = 0;
-    virtual void close_connection   () = 0;
-
-    virtual ~underlying_transport(){}
-};
-
 struct endpoint
 {
     endpoint(string address = "", size_t port = 0)

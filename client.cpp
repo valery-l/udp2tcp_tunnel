@@ -30,7 +30,7 @@ private:
     void cock_the_clock(size_t seconds)
     {
         // test
-        timer_.expires_from_now(boost::posix_time::milliseconds(100 * seconds));
+        timer_.expires_from_now(boost::posix_time::milliseconds(10 * seconds));
         timer_.async_wait(bind(&client::on_tick, this, _1));
     }
 
@@ -50,7 +50,7 @@ private:
 
         //udp_sock_->send(&msg, sizeof(msg));
         tcp_sock_->send(&msg, sizeof(msg));
-        cout << "client has sent: " << msg.counter << endl;
+        //cout << "client has sent: " << msg.counter << endl;
     }
 
     void on_receive(const void* data, size_t size)

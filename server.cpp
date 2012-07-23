@@ -16,24 +16,6 @@ struct server
     {
         cout << "accepted some connection" << endl;
 
-        error_code code;
-
-        udp::socket::receive_buffer_size rbs;
-        moveable_sock.get_option(rbs, code);
-
-        cout << "TCP Recv buffer: ";
-        if (code) cout << "Error: " << code.message();
-        else      cout << rbs.value();
-        cout << endl;
-
-        cout << "TCP Send buffer: ";
-        udp::socket::send_buffer_size sbs;
-        moveable_sock.get_option(sbs);
-
-        if (code) cout << "Error: " << code.message();
-        else      cout << sbs.value();
-        cout << endl;
-
         tcp_sock_ = in_place(
             ref(moveable_sock),
             bind(&server::on_receive, this, _1, _2),

@@ -2,46 +2,117 @@
 #include "tcp_service.h"
 #include "underlying_transport_impl.h"
 
+namespace
+{
+struct tcp_transfer_strategy
+{
+    template<class buffers_sequence, class callback>
+    void async_send(tcp::socket& sock, buffers_sequence& buf_seq, callback const& cb)
+    {
+        shared_buf_seq_ = shared_buf_seq_t(forward<buffers_sequence>(buf_seq));
+        buf_seq  = buffers_sequence();
+
+        async_write(sock, shared_buf_seq_, cb);
+    }
+
+    template<class buffer, class callback>
+    void async_recv(tcp::socket& sock, buffer const& buf, callback const& cb) const
+    {
+        sock.async_read_some(buf, cb);
+    }
+
+private:
+    typedef
+        asio_helper::shared_const_buffers_seq<asio_helper::shared_const_buffer>
+        shared_buf_seq_t;
+
+private:
+    shared_buf_seq_t shared_buf_seq_;
+};
+} // 'anonymous'
+
+
+
 namespace network
 {
 
+///////////////////////////////////////////////////////////////////////////
+struct tcp_socket::impl
+{
+    typedef
+        underlying_transport_impl<tcp, tcp_transfer_strategy>
+        underlying_transport;
+
+    impl(tcp::socket&        moveable_sock,
+         on_receive_f        const& on_receive,
+         on_disconnected_f   const& on_discon,
+         on_error_f          const& on_error)
+
+        : on_discon_(on_discon )
+        , on_error_ (on_error  )
+        , transport_(underlying_transport::create(move(moveable_sock), on_receive, bind(&impl::on_error, this, _1), &tcp_transfer_strat_))
+    {
+    }
+
+    ~impl()
+    {
+        transport_->close_connection();
+    }
+
+    void send(const void* data, size_t size)
+    {
+        transport_->send(data, size);
+    }
+
+private:
+    void on_error(error_code const& code)
+    {
+        if (code)
+        {
+            if (code.category() == error::misc_category &&
+                code.value   () == error::eof)
+            {
+                on_discon_();
+            }
+            else
+                on_error_(code);
+        }
+    }
+
+// tcp transport
+private:
+    on_disconnected_f   on_discon_;
+    on_error_f          on_error_;
+
+private:
+    tcp_transfer_strategy            tcp_transfer_strat_;
+    shared_ptr<underlying_transport> transport_;
+};
+
+
+
+
 //////////////////////////////////////////////////////////////////////
-// tcp_socket
 tcp_socket::tcp_socket(
     tcp::socket&               moveable_sock,
     on_receive_f        const& on_receive,
     on_disconnected_f   const& on_discon,
     on_error_f          const& on_error)
 
-    : on_discon_(on_discon )
-    , on_error_ (on_error  )
-    , transport_(underlying_transport_impl<tcp>::create(move(moveable_sock), on_receive, bind(&tcp_socket::on_error, this, _1)))
+    : pimpl_(new tcp_socket::impl(moveable_sock, on_receive, on_discon, on_error))
 {
 }
 
 tcp_socket::~tcp_socket()
 {
-    transport_->close_connection();
 }
 
 void tcp_socket::send(const void* data, size_t size)
 {
-    transport_->send(data, size);
+    pimpl_->send(data, size);
 }
 
-void tcp_socket::on_error(error_code const& code)
-{
-    if (code)
-    {
-        if (code.category() == error::misc_category &&
-            code.value   () == error::eof)
-        {
-            on_discon_();
-        }
-        else
-            on_error_(code);
-    }
-}
+
 
 ///////////////////////////////////////////////////////////////////////
 // tcp_fragment_socket

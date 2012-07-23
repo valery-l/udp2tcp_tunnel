@@ -22,15 +22,8 @@ struct tcp_socket
     void send(const void* data, size_t size);
 
 private:
-    void on_error(error_code const& code);
-
-// tcp transport
-private:
-    on_disconnected_f   on_discon_;
-    on_error_f          on_error_;
-
-private:
-    shared_ptr<underlying_transport> transport_;
+    struct impl;
+    scoped_ptr<impl> pimpl_;
 };
 
 

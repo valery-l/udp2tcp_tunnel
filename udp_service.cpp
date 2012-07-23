@@ -13,28 +13,35 @@ udp::socket connected_udp_socket(
 {
     udp::socket sock = udp::socket(io, local_bind ? udp::endpoint(*local_bind) : udp::endpoint(ip::udp::v4(), 0));
 
-    error_code code;
-
-    udp::socket::receive_buffer_size rbs;
-    sock.get_option(rbs, code);
-
-    cout << "Recv buffer. ";
-    if (code) cout << "Error: " << code.message();
-    else      cout << rbs.value();
-    cout << endl;
-
-    cout << "Send buffer. ";
-    udp::socket::send_buffer_size sbs;
-    sock.get_option(sbs);
-
-    if (code) cout << "Error: " << code.message();
-    else      cout << sbs.value();
-    cout << endl;
-
     sock.set_option(udp::socket::reuse_address(true));
     sock.set_option(udp::socket::broadcast    (true));
     return sock;
 }
+
+///////////////////////////////////////////////////////////////////////////
+struct udp_transfer_strategy
+{
+    udp_transfer_strategy(udp::endpoint const& remote_peer)
+        : remote_peer_(remote_peer)
+    {
+    }
+
+    template<class buffers_sequence, class callback>
+    void async_send(udp::socket& sock, buffers_sequence& buf_seq, callback const& cb) const
+    {
+        sock.async_send_to(buf_seq.front(), remote_peer_, cb);
+        buf_seq.pop_front();
+    }
+
+    template<class buffer, class callback>
+    void async_recv(udp::socket& sock, buffer const& buf, callback const& cb) const
+    {
+        sock.async_receive(buf, cb);
+    }
+
+private:
+    udp::endpoint remote_peer_;
+};
 
 } // 'anonymous'
 
@@ -42,6 +49,47 @@ udp::socket connected_udp_socket(
 namespace network
 {
 
+///////////////////////////////////////////////////////////////////////////
+struct udp_socket::impl
+{
+    typedef
+        underlying_transport_impl<udp, udp_transfer_strategy>
+        underlying_transport;
+
+    impl(
+        io_service& io,
+        optional<endpoint>  const& local_bind,
+        optional<endpoint>  const& remote_server,
+        on_receive_f        const& on_receive,
+        on_error_f          const& on_error)
+
+    :  strat_    (remote_server ? *remote_server : endpoint())
+    ,  transport_(
+          underlying_transport::create(
+            move(connected_udp_socket(io, local_bind)),
+            on_receive,
+            on_error,
+            &strat_))
+    {
+    }
+
+    ~impl()
+    {
+        transport_->close_connection();
+    }
+
+    void send(const void* data, size_t size)
+    {
+        transport_->send(data, size);
+    }
+
+private:
+    udp_transfer_strategy               strat_;
+    shared_ptr<underlying_transport>    transport_;
+};
+
+
+///////////////////////////////////////////////////////////////////////////
 udp_socket::udp_socket(
     io_service& io,
     optional<endpoint> const& local_bind,
@@ -49,24 +97,17 @@ udp_socket::udp_socket(
     on_receive_f const& on_receive,
     on_error_f   const& on_error)
 
-    :  strat_    (remote_server ? *remote_server : endpoint())
-    ,  transport_(
-        underlying_transport_impl<udp>::create(
-            move(connected_udp_socket(io, local_bind)),
-            on_receive,
-            on_error,
-            strat_))
+    :  pimpl_(new udp_socket::impl(io, local_bind, remote_server, on_receive, on_error))
 {
 }
 
 udp_socket::~udp_socket()
 {
-    transport_->close_connection();
 }
 
 void udp_socket::send(const void* data, size_t size)
 {
-    transport_->send(data, size);
+    pimpl_->send(data, size);
 }
 
 } // namespace network
