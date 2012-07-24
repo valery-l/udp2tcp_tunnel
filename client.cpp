@@ -1,9 +1,5 @@
 #include "common.h"
-#include "asio_helper.h"
-#include "tcp_service.h"
-#include "udp_service.h"
-
-#include "ping.h"
+#include "network.h"
 
 struct client
 {

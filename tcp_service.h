@@ -1,8 +1,4 @@
 #pragma once
-
-#include "connecting.h"
-#include "asio_helper.h"
-#include "connecting.h"
 #include "net_common.h"
 
 namespace network
