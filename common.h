@@ -16,6 +16,7 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
+#include <boost/date_time.hpp>
 #include <boost/function.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/format.hpp>
@@ -30,6 +31,8 @@
 #include <boost/utility/in_place_factory.hpp>
 #include <boost/utility/typed_in_place_factory.hpp>
 
+using std::cin;
+using std::cerr;
 using std::cout;
 using std::endl;
 
@@ -75,6 +78,8 @@ using boost::weak_ptr;
 using boost::scoped_ptr;
 using boost::make_shared;
 
+namespace posix_time = boost::posix_time;
+
 void run_server(string remote_ip, size_t port);
 void run_client(string local_ip , size_t port);
 
@@ -96,8 +101,10 @@ struct test_msg_data
 
 inline void trace_error(boost::system::error_code const& code)
 {
-    cout << "Err! Msg: " << code.message() << "; category: " << code.category().name() << "; value: " << code.value() << endl;
+    cerr << "Err! Msg: " << code.message() << "; category: " << code.category().name() << "; value: " << code.value() << endl;
 }
+
+
 
 
 

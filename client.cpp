@@ -3,6 +3,8 @@
 #include "tcp_service.h"
 #include "udp_service.h"
 
+#include "ping.h"
+
 struct client
 {
     client(io_service& io, string server, short port)
@@ -93,10 +95,34 @@ private:
     const size_t                            port_;
 };
 
+///////////////////////////////////////////////////
+// ping test
+/*
+void on_pinged(io_service& io, string server, bool success, posix_time::milliseconds const& delay);
+
+void start_ping(io_service& io, string server)
+{
+    network::ping(io, server, posix_time::milliseconds(500), bind(&on_pinged, ref(io), server, _1, _2));
+}
+
+void on_pinged(io_service& io, string server, bool success, posix_time::milliseconds const& delay)
+{
+    cout << "ping " << (success ? "succedded" : "failed") << " timeout: " << delay << endl;
+
+    deadline_timer timer(io);
+    timer.expires_from_now(posix_time::seconds(1));
+    timer.wait();
+
+    start_ping(io, server);
+}
+*/
+
 void run_tcp_client(string server, size_t port)
 {
     io_service io;
     client cl(io, server, port);
+
+    //start_ping(io, server);
 
     io.run();
 }

@@ -33,6 +33,13 @@ public:
     {
     }
 
+    shared_const_buffer(const void* data, size_t size)
+
+        : data_  (make_shared<array_t>(reinterpret_cast<const char*>(data), reinterpret_cast<const char*>(data) + size))
+        , buffer_(buffer(*data_))
+    {
+    }
+
     // Implement the ConstBufferSequence requirements
     typedef const_buffer value_type;
     typedef const const_buffer* const_iterator;

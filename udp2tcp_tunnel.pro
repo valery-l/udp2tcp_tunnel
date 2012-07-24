@@ -36,6 +36,7 @@ SOURCES += main.cpp \
     udp_service.cpp \
     client.cpp \
     server.cpp \
+    ping.cpp
 
 HEADERS += \
     common.h \
@@ -45,5 +46,9 @@ HEADERS += \
     cpp_utils.h \
     underlying_transport_impl.h \
     net_common.h \
-    udp_service.h
+    udp_service.h \
+    ipv4_header.h \
+    icmp_header.h \
+    ping.h \
+    network.h
 
