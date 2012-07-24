@@ -14,6 +14,11 @@ struct endpoint
         , port  (port)
     {}
 
+    endpoint(ip::address_v4 address, size_t port = 0)
+        : addr  (address)
+        , port  (port   )
+    {}
+
     operator tcp::endpoint() const { return tcp::endpoint(addr, port); }
     operator udp::endpoint() const { return udp::endpoint(addr, port); }
 

@@ -69,8 +69,8 @@ private:
     {
         if (code)
         {
-            if (code.category() == error::misc_category &&
-                code.value   () == error::eof)
+            if ((code.category() == error::misc_category    && code.value   () == error::eof) ||            // usually, by on_receive
+                (code.category() == error::system_category  && code.value   () == error::connection_reset)) // and this - by on_send
             {
                 on_discon_();
             }

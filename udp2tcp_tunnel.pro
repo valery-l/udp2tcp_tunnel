@@ -36,8 +36,6 @@ SOURCES += main.cpp \
     udp_service.cpp \
     client.cpp \
     server.cpp \
-    __udp_client.cpp \
-    __udp_server.cpp
 
 HEADERS += \
     common.h \

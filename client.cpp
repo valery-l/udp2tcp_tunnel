@@ -6,8 +6,8 @@
 struct client
 {
     client(io_service& io, string server, short port)
-        : udp_sock_ (in_place(ref(io), network::endpoint(server, port + 1), none, bind(&client::on_receive, this, _1, _2), trace_error))
-        , timer_    (io)
+        : timer_(io)
+        , port_ (port)
     {
         network::connect(io, network::endpoint(server, port), bind(&client::on_connected, this, _1), trace_error);
         //cock_the_clock(1);
@@ -22,6 +22,13 @@ private:
             ref(sock),
             bind(&client::on_receive, this, _1, _2),
             bind(&client::on_disconnected, this),
+            trace_error);
+
+        udp_sock_ = in_place(
+            ref(sock.get_io_service()),
+            network::endpoint(ip::address_v4::broadcast(), port_ + 1),
+            none,
+            bind(&client::on_receive, this, _1, _2),
             trace_error);
 
         cock_the_clock(1);
@@ -83,6 +90,7 @@ private:
     optional<network::udp_socket          > udp_sock_;
     deadline_timer                          timer_;
     optional<size_t>                        last_counter_;
+    const size_t                            port_;
 };
 
 void run_tcp_client(string server, size_t port)

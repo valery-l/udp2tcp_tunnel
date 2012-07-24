@@ -7,7 +7,14 @@ struct server
 {
     server(io_service& io, size_t port)
         : acceptor_(in_place(ref(io), network::endpoint("", port), bind(&server::on_accepted, this, _1, _2), trace_error))
-        , udp_sock_(in_place(ref(io), none, network::endpoint("", port + 1), bind(&server::on_receive, this, _1, _2)/*network::on_receive_f()*/, trace_error))
+        , udp_sock_(
+                in_place(ref(io),
+                none,
+                network::endpoint(
+                    ip::address_v4::broadcast(),
+                    port + 1),
+                bind(&server::on_receive, this, _1, _2)/*network::on_receive_f()*/,
+                trace_error))
         , timer_   (io)
     {
     }
@@ -38,6 +45,14 @@ struct server
 
         cout << "server has received: " << msg->counter << endl;
         udp_sock_->send(msg, size);
+
+        // check for deleteting from callback
+        if (msg->counter > 155)
+        {
+//            udp_sock_.reset();
+//            tcp_sock_.reset();
+//            timer_.cancel_one();
+        }
     }
 
     void on_disconnected()
