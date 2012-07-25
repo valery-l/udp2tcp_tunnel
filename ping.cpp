@@ -15,31 +15,36 @@
 
 #include "icmp_header.h"
 #include "ipv4_header.h"
+#include "auto_cancel.h"
 
-namespace
+namespace network
 {
 
 using boost::asio::ip::icmp;
 using boost::asio::deadline_timer;
 
-struct async_pinger
-        : enable_shared_from_this<async_pinger>
+struct async_pinger::impl
+        : enable_shared_from_this<impl>
+        , enable_cancel_resource
 {
     typedef
-        shared_ptr<async_pinger>
+        shared_ptr<impl>
         ptr_t;
 
     static ptr_t create(io_service& io, string destination, posix_time::milliseconds const& timeout, network::on_pinged_f const& on_pinged)
     {
-        ptr_t pinger(new async_pinger(io, destination, timeout, on_pinged));
+        ptr_t pinger(new impl(io, destination, timeout, on_pinged));
         pinger->start_ping();
 
         return pinger;
     }
 
 private:
-    async_pinger(io_service& io, string destination, posix_time::milliseconds const& timeout, network::on_pinged_f const& on_pinged)
-        : socket_   (io, icmp::v4())
+    impl(io_service& io, string destination, posix_time::milliseconds const& timeout, network::on_pinged_f const& on_pinged)
+
+        : enable_cancel_resource(socket_)
+
+        , socket_   (io, icmp::v4())
         , timer_    (io)
         , timeout_  (timeout)
         , on_pinged_(on_pinged)
@@ -74,11 +79,11 @@ private:
         compute_checksum<const char*>(echo_request, 0, 0);
 
         asio_helper::shared_const_buffer shared_buf(&echo_request, sizeof(echo_request));
-        socket_.async_send_to(shared_buf, destination_, bind(&async_pinger::on_send, shared_from_this(), _2));
+        socket_.async_send_to(shared_buf, destination_, bind(&impl::on_send, shared_from_this(), _2));
 
         // Wait up to timeout seconds for a reply.
         timer_.expires_at(time_sent_ + timeout_);
-        timer_.async_wait(boost::bind(&async_pinger::on_timeout, shared_from_this(), _1));
+        timer_.async_wait(boost::bind(&impl::on_timeout, shared_from_this(), _1));
     }
 
     void on_timeout(error_code const& code)
@@ -97,11 +102,14 @@ private:
 
         // Wait for a reply. We prepare the buffer to receive up to 64KB.
         socket_.async_receive(reply_buffer_.prepare(1 << 16),
-                              boost::bind(&async_pinger::on_receive, shared_from_this(), _1, _2));
+                              boost::bind(&impl::on_receive, shared_from_this(), _1, _2));
     }
 
     void on_receive(error_code const& code, std::size_t length)
     {
+        if (cancelled())
+            return;
+
         if (code)
             return;
 
@@ -158,7 +166,7 @@ private:
 };
 
 ///////////////////////////////////////
-posix_time::ptime async_pinger::epoch_start_(boost::gregorian::date(1970, 1, 1));
+posix_time::ptime async_pinger::impl::epoch_start_(boost::gregorian::date(1970, 1, 1));
 
 } // 'anonymous'
 
@@ -168,10 +176,13 @@ posix_time::ptime async_pinger::epoch_start_(boost::gregorian::date(1970, 1, 1))
 
 
 ///////////////////////////////////////////////////////////////////////////////////////
-
-void network::ping(io_service& io, string destination, posix_time::milliseconds const& timeout, on_pinged_f const& on_pinged)
+network::async_pinger::async_pinger(io_service& io, string destination, posix_time::milliseconds const& timeout, on_pinged_f const& on_pinged)
+    : pimpl_(impl::ptr_t(impl::create(io, destination, timeout, on_pinged)))
 {
-    async_pinger::create(io, destination, timeout, on_pinged);
+}
+
+network::async_pinger::~async_pinger()
+{
 }
 
 

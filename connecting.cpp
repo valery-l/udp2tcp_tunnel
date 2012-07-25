@@ -1,84 +1,95 @@
 #include "common.h"
 #include "connecting.h"
 #include "asio_helper.h"
+#include "auto_cancel.h"
 
 namespace network
 {
 
-void connect(io_service& io, endpoint const& remote_server, on_connected_f const& on_connected, on_error_f const& on_error)
+struct async_connector::impl
+        : noncopyable
+        , enable_cancel_resource
 {
-    struct async_connector
-            : noncopyable
+    typedef shared_ptr<impl> ptr_t;
+
+    static ptr_t create(io_service& io, endpoint const& remote_server, on_connected_f const& on_connected, on_error_f const& on_error)
     {
-        static void request(io_service& io, endpoint const& remote_server, on_connected_f const& on_connected, on_error_f const& on_error)
+        // don't worry - the object will be deleted automatically after establishing connection
+        ptr_t connector(new impl(io, on_connected, on_error));
+        connector->sock_.async_connect(remote_server, bind(&impl::on_connected, connector, _1));
+
+        return connector;
+    }
+
+private:
+    impl(io_service& io, on_connected_f const& on_connected, on_error_f const& on_error)
+
+        : enable_cancel_resource(sock_)
+
+        , sock_         (io)
+        , on_connected_ (on_connected)
+        , on_error_     (on_error )
+    {
+        assert(on_connected_);
+    }
+
+    void on_connected(error_code const& code)
+    {
+        if (cancelled())
+            return;
+
+        if (code)
         {
-            // don't worry - the object will be deleted automatically after establishing connection
-            ptr_t connector(new async_connector(io, on_connected, on_error));
-            connector->sock_.async_connect(remote_server, bind(&async_connector::on_connected, connector, _1));
+            on_error_(code);
+            return;
         }
 
-    private:
-        typedef shared_ptr<async_connector> ptr_t;
-
-        async_connector(io_service& io, on_connected_f const& on_connected, on_error_f const& on_error)
-            : sock_         (io)
-            , on_connected_ (on_connected)
-            , on_error_     (on_error )
-        {
-            assert(on_connected_);
-        }
-
-        void on_connected(error_code const& code)
-        {
-            if (code)
-            {
-                on_error_(code);
-                return;
-            }
-
-            on_connected_(sock_);
-        }
+        on_connected_(sock_);
+        detach_resource();
+    }
 
 
-    private:
-        tcp::socket     sock_;
-        on_connected_f  on_connected_;
-        on_error_f      on_error_;
-    };
+private:
+    tcp::socket     sock_;
+    on_connected_f  on_connected_;
+    on_error_f      on_error_;
+};
 
-    async_connector::request(io, remote_server, on_connected, on_error);
+////////////////////////////////////////////////////////////////////////
+async_connector::async_connector(io_service& io, endpoint const& remote_server, on_connected_f const& on_connected, on_error_f const& on_error)
+    : pimpl_(impl::create(io, remote_server, on_connected, on_error))
+{
+}
+
+async_connector::~async_connector()
+{
 }
 
 ///////////////////////////////////////////////////////////////////////
 // underlying_acceptor
 
-struct underlying_acceptor
+struct async_acceptor::impl
         : noncopyable
-        , enable_shared_from_this<underlying_acceptor>
+        , enable_shared_from_this<impl>
+        , enable_cancel_resource
 {
-    typedef shared_ptr<underlying_acceptor>  ptr_t;
+    typedef shared_ptr<impl>  ptr_t;
 
 public:
     static ptr_t create(io_service& io, endpoint const& local_bind, network::on_accept_f const& on_accept, network::on_error_f const& on_error)
     {
-        ptr_t acceptor(new underlying_acceptor(ref(io), local_bind, boost::cref(on_accept), boost::cref(on_error)));
+        ptr_t acceptor(new impl(ref(io), local_bind, boost::cref(on_accept), boost::cref(on_error)));
         acceptor->start_async_accept();
 
         return acceptor;
     }
 
-    void stop_listening()
-    {
-        alive_ = false;
-        acceptor_.cancel();
-    }
-
 private:
-    underlying_acceptor(io_service& io, endpoint const& local_bind, network::on_accept_f const& on_accept, network::on_error_f const& on_error)
+    impl(io_service& io, endpoint const& local_bind, network::on_accept_f const& on_accept, network::on_error_f const& on_error)
 
-        : alive_    (true)
+        : enable_cancel_resource(acceptor_)
+
         , acceptor_ (io, local_bind)
-
         , on_accept_(on_accept)
         , on_error_ (on_error )
     {
@@ -90,12 +101,12 @@ private:
         auto sock = make_shared<tcp::socket>(ref(acceptor_.get_io_service()));
         auto peer = make_shared<tcp::endpoint>();
 
-        acceptor_.async_accept(*sock, *peer, bind(&underlying_acceptor::on_accept, shared_from_this(), sock, peer, _1));
+        acceptor_.async_accept(*sock, *peer, bind(&impl::on_accept, shared_from_this(), sock, peer, _1));
     }
 
     void on_accept(shared_ptr<tcp::socket> socket, shared_ptr<tcp::endpoint> peer, error_code const& code)
     {
-        if (!alive_)
+        if (cancelled())
             return;
 
         if (code)
@@ -109,7 +120,6 @@ private:
     }
 
 private:
-    bool                    alive_;
     tcp::acceptor           acceptor_;
     network::on_accept_f    on_accept_;
     network::on_error_f     on_error_;
@@ -119,13 +129,12 @@ private:
 ////////////////////////////////////////////////////////////////////////
 // async_acceptor
 async_acceptor::async_acceptor(io_service& io, endpoint const& local_bind, on_accept_f const& on_accept, on_error_f const& on_error)
-    : acceptor_(underlying_acceptor::create(io, local_bind, on_accept, on_error))
+    : acceptor_(impl::create(io, local_bind, on_accept, on_error))
 {
 }
 
 async_acceptor::~async_acceptor()
 {
-    acceptor_->stop_listening();
 }
 
 } // namespace network

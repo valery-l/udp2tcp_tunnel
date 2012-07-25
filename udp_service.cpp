@@ -5,6 +5,8 @@
 #include "udp_service.h"
 #include "underlying_transport_impl.h"
 
+#include "auto_cancel.h"
+
 namespace
 {
 udp::socket connected_udp_socket(
@@ -65,17 +67,13 @@ struct udp_socket::impl
 
     :  strat_    (remote_server ? *remote_server : endpoint())
     ,  transport_(
-          underlying_transport::create(
-            move(connected_udp_socket(io, local_bind)),
-            on_receive,
-            on_error,
-            &strat_))
+          underlying_transport::ptr_t(
+              underlying_transport::create(
+                move(connected_udp_socket(io, local_bind)),
+                on_receive,
+                on_error,
+                &strat_)))
     {
-    }
-
-    ~impl()
-    {
-        transport_->close_connection();
     }
 
     void send(const void* data, size_t size)
@@ -84,8 +82,8 @@ struct udp_socket::impl
     }
 
 private:
-    udp_transfer_strategy               strat_;
-    shared_ptr<underlying_transport>    transport_;
+    udp_transfer_strategy                   strat_;
+    auto_cancel_ptr<underlying_transport>   transport_;
 };
 
 
@@ -98,10 +96,6 @@ udp_socket::udp_socket(
     on_error_f   const& on_error)
 
     :  pimpl_(new udp_socket::impl(io, local_bind, remote_server, on_receive, on_error))
-{
-}
-
-udp_socket::~udp_socket()
 {
 }
 

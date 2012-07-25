@@ -5,10 +5,10 @@
 struct client
 {
     client(io_service& io, string server, short port)
-        : timer_(io, bind(&client::on_tick, this))
-        , port_ (port)
+        : timer_    (io, bind(&client::on_tick, this))
+        , connector_(io, network::endpoint(server, port), bind(&client::on_connected, this, _1), trace_error)
+        , port_     (port)
     {
-        network::connect(io, network::endpoint(server, port), bind(&client::on_connected, this, _1), trace_error);
         //cock_the_clock(1);
     }
 
@@ -86,6 +86,7 @@ private:
     optional<network::tcp_fragment_wrapper> tcp_sock_;
     optional<network::udp_socket          > udp_sock_;
     async_timer                             timer_;
+    network::async_connector                connector_;
     optional<size_t>                        last_counter_;
     const size_t                            port_;
 };

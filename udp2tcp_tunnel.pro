@@ -53,5 +53,6 @@ HEADERS += \
     ping.h \
     network.h \
     tunnel_point.h \
-    async_timer.h
+    async_timer.h \
+    auto_cancel.h
 

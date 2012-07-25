@@ -13,13 +13,12 @@ struct tcp_socket
 {
     // can't use r-value ref, as it's not supported by boost::in_place and has problems with boost::function
     tcp_socket(tcp::socket& moveable_sock, on_receive_f const&, on_disconnected_f const&, on_error_f const&);
-   ~tcp_socket();
 
     void send(const void* data, size_t size);
 
 private:
     struct impl;
-    scoped_ptr<impl> pimpl_;
+    shared_ptr<impl> pimpl_;
 };
 
 

@@ -1,6 +1,7 @@
 #pragma once
 #include "net_common.h"
 #include "asio_helper.h"
+#include "auto_cancel.h"
 
 namespace network
 {
@@ -10,6 +11,7 @@ namespace network
 template <class protocol, class async_transfer_strategy>
 struct underlying_transport_impl
         : noncopyable
+        , enable_cancel_resource
         , enable_shared_from_this
             <underlying_transport_impl
                 <protocol, async_transfer_strategy> >
@@ -29,12 +31,6 @@ struct underlying_transport_impl
         strat->async_recv(ptr->sock_, buffer(ptr->buf_), bind(&this_t::on_receive, ptr, _1, _2));
 
         return ptr;
-    }
-
-    void close_connection()
-    {
-        alive_ = false;
-        sock_.cancel();
     }
 
     void send(const void *data, size_t size)
@@ -60,7 +56,9 @@ struct underlying_transport_impl
 
 private:
     underlying_transport_impl(socket_t&& sock, on_receive_f const& on_receive, on_error_f const& on_error, strat_t* strat)
-        : alive_            (true)
+
+        : enable_cancel_resource(sock_)
+
         , sock_             (forward<socket_t>(sock))
         , strat_            (*strat)
         , ready_send_       (true)
@@ -73,7 +71,7 @@ private:
 private:
     void on_send(const error_code& code,  size_t)
     {
-        if (!alive_)
+        if (cancelled())
             return;
 
         if (code)
@@ -94,7 +92,7 @@ private:
 private:
     void on_receive(const error_code& code, size_t bytes_transferred)
     {
-        if (!alive_)
+        if (cancelled())
             return;
 
         if (code)
@@ -112,15 +110,12 @@ private:
     }
 
 private:
-    bool        alive_;
     socket_t    sock_ ;
 
 private:
     strat_t& strat_;
 
 private:
-
-
     typedef
         list<asio_helper::shared_const_buffer>
         msg_list_t;
@@ -128,8 +123,6 @@ private:
 private:
     bool        ready_send_;
     msg_list_t  msgs_;
-
-
 
     // for receiving
 private:

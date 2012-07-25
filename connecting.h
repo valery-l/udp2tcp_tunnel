@@ -1,6 +1,7 @@
 #pragma once
 #include "common.h"
 #include "net_common.h"
+#include "auto_cancel.h"
 
 namespace network
 {
@@ -9,7 +10,15 @@ namespace network
 typedef function<void (tcp::socket&)>                       on_connected_f  ; // moveable socket
 typedef function<void (tcp::socket&, tcp::endpoint const&)> on_accept_f     ; // moveable socket
 
-void connect(io_service& io, endpoint const& remote_server, on_connected_f const&, on_error_f const&);
+struct async_connector
+{
+    async_connector(io_service& io, endpoint const& remote_server, on_connected_f const&, on_error_f const&);
+   ~async_connector();
+
+private:
+    struct impl;
+    auto_cancel_ptr<impl> pimpl_;
+};
 
 struct async_acceptor
         : noncopyable
@@ -17,8 +26,10 @@ struct async_acceptor
     async_acceptor(io_service& io, endpoint const& local_bind, on_accept_f const& on_accept, on_error_f const& on_error);
    ~async_acceptor();
 
+
 private:
-    shared_ptr<struct underlying_acceptor> acceptor_;
+    struct impl;
+    auto_cancel_ptr<impl> acceptor_;
 };
 
 } // namespace network

@@ -45,6 +45,8 @@ struct tcp_socket::impl
         underlying_transport_impl<tcp, tcp_transfer_strategy>
         underlying_transport;
 
+    typedef underlying_transport::ptr_t transport_ptr;
+
     impl(tcp::socket&        moveable_sock,
          on_receive_f        const& on_receive,
          on_disconnected_f   const& on_discon,
@@ -52,13 +54,8 @@ struct tcp_socket::impl
 
         : on_discon_(on_discon )
         , on_error_ (on_error  )
-        , transport_(underlying_transport::create(move(moveable_sock), on_receive, bind(&impl::on_error, this, _1), &tcp_transfer_strat_))
+        , transport_(transport_ptr(underlying_transport::create(move(moveable_sock), on_receive, bind(&impl::on_error, this, _1), &tcp_transfer_strat_)))
     {
-    }
-
-    ~impl()
-    {
-        transport_->close_connection();
     }
 
     void send(const void* data, size_t size)
@@ -92,8 +89,8 @@ private:
     on_error_f          on_error_;
 
 private:
-    tcp_transfer_strategy            tcp_transfer_strat_;
-    shared_ptr<underlying_transport> transport_;
+    tcp_transfer_strategy                 tcp_transfer_strat_;
+    auto_cancel_ptr<underlying_transport> transport_;
 };
 
 
@@ -105,10 +102,6 @@ tcp_socket::tcp_socket(
     on_error_f          const& on_error)
 
     : pimpl_(new tcp_socket::impl(moveable_sock, on_receive, on_discon, on_error))
-{
-}
-
-tcp_socket::~tcp_socket()
 {
 }
 

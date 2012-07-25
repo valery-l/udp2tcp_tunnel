@@ -1,4 +1,5 @@
 #pragma once
+#include "auto_cancel.h"
 
 typedef function<void()> on_timer_f;
 
@@ -12,6 +13,10 @@ struct async_timer
 
 private:
     struct impl;
-    shared_ptr<impl> pimpl_;
+    auto_cancel_ptr<impl> pimpl_;
+
+private:
+    io_service& io_;
+    on_timer_f  on_timer_;
 };
 

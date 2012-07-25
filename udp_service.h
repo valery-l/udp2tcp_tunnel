@@ -13,13 +13,11 @@ struct udp_socket
         on_receive_f const&,
         on_error_f const&);
 
-   ~udp_socket();
-
     void send(const void* data, size_t size);
 
 private:
     struct impl;
-    scoped_ptr<impl> pimpl_;
+    shared_ptr<impl> pimpl_;
 };
 
 }
