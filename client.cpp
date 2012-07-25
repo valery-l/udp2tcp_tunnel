@@ -1,10 +1,11 @@
 #include "common.h"
 #include "network.h"
+#include "async_timer.h"
 
 struct client
 {
     client(io_service& io, string server, short port)
-        : timer_(io)
+        : timer_(io, bind(&client::on_tick, this))
         , port_ (port)
     {
         network::connect(io, network::endpoint(server, port), bind(&client::on_connected, this, _1), trace_error);
@@ -34,26 +35,24 @@ private:
 
     void cock_the_clock(size_t seconds)
     {
+        if (!tcp_sock_)
+            cout << "Cocking the clock without tcp socket" << endl;
+
         // test
-        timer_.expires_from_now(boost::posix_time::milliseconds(10 * seconds));
-        timer_.async_wait(bind(&client::on_tick, this, _1));
+        timer_.wait(boost::posix_time::milliseconds(2 * seconds));
     }
 
-    void on_tick(const error_code& code)
+    void on_tick()
     {
-        if (code)
-        {
-            cout << "supressing timer error" << endl;
-            //trace_error(code);
-            return;
-        }
-
         cock_the_clock(1);
 
         static size_t counter = 0;
         test_msg_data msg(++counter);
 
         //udp_sock_->send(&msg, sizeof(msg));
+        if (!tcp_sock_)
+            cout << "oppa, no tcp socket here!" << endl;
+
         tcp_sock_->send(&msg, sizeof(msg));
         //cout << "client has sent: " << msg.counter << endl;
     }
@@ -76,17 +75,17 @@ private:
 
     void on_disconnected()
     {
-        cout << "Olala, remote host has been disconnected" << endl;
-
         timer_.cancel();
         tcp_sock_ .reset();
         udp_sock_ .reset();
+
+        cout << "Olala, remote host has been disconnected" << endl;
     }
 
 private:
     optional<network::tcp_fragment_wrapper> tcp_sock_;
     optional<network::udp_socket          > udp_sock_;
-    deadline_timer                          timer_;
+    async_timer                             timer_;
     optional<size_t>                        last_counter_;
     const size_t                            port_;
 };

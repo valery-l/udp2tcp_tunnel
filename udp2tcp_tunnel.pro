@@ -36,7 +36,8 @@ SOURCES += main.cpp \
     udp_service.cpp \
     client.cpp \
     server.cpp \
-    ping.cpp
+    ping.cpp \
+    async_timer.cpp
 
 HEADERS += \
     common.h \
@@ -50,5 +51,7 @@ HEADERS += \
     ipv4_header.h \
     icmp_header.h \
     ping.h \
-    network.h
+    network.h \
+    tunnel_point.h \
+    async_timer.h
 

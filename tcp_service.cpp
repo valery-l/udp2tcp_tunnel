@@ -71,8 +71,13 @@ private:
     {
         if (code)
         {
-            if ((code.category() == error::misc_category    && code.value   () == error::eof) ||            // usually, by on_receive
-                (code.category() == error::system_category  && code.value   () == error::connection_reset)) // and this - by on_send
+
+            if  // usually, by on_receive
+               ((code.category() == error::misc_category    && code.value   () == error::eof)               ||
+
+                // and these - by on_send
+                (code.category() == error::system_category  && code.value   () == error::connection_reset)  ||
+                (code.category() == error::system_category  && code.value   () == error::broken_pipe     ))
             {
                 on_discon_();
             }
@@ -90,8 +95,6 @@ private:
     tcp_transfer_strategy            tcp_transfer_strat_;
     shared_ptr<underlying_transport> transport_;
 };
-
-
 
 
 //////////////////////////////////////////////////////////////////////

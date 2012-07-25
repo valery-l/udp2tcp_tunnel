@@ -1,7 +1,6 @@
 #include "common.h"
-#include "connecting.h"
-#include "tcp_service.h"
-#include "udp_service.h"
+#include "network.h"
+#include "async_timer.h"
 
 struct server
 {
@@ -15,7 +14,7 @@ struct server
                     port + 1),
                 bind(&server::on_receive, this, _1, _2)/*network::on_receive_f()*/,
                 trace_error))
-        , timer_   (io)
+        , timer_   (io, bind(&server::remove_waiting_socket, this))
     {
     }
 
@@ -30,9 +29,7 @@ struct server
             trace_error);
 
         acceptor_.reset();
-
-        timer_.expires_from_now(boost::posix_time::milliseconds(7300));
-        timer_.async_wait      (bind(&server::remove_waiting_socket, this, _1));
+        timer_.wait(posix_time::milliseconds(7300));
     }
 
     void on_receive(const void* data, size_t size)
@@ -62,15 +59,8 @@ struct server
         cout << "Ooops! Client, I've lost you!" << endl;
     }
 
-    void remove_waiting_socket(error_code const& code)
+    void remove_waiting_socket()
     {
-        if (code)
-        {
-            cout << "supressing timer error" << endl;
-            //trace_error(code);
-            return;
-        }
-
         cout << "Arrivederci client" << endl;
         tcp_sock_.reset();
         udp_sock_.reset();
@@ -80,7 +70,7 @@ private:
     optional<network::async_acceptor>       acceptor_;
     optional<network::tcp_fragment_wrapper> tcp_sock_;
     optional<network::udp_socket          > udp_sock_;
-    deadline_timer                          timer_  ;
+    async_timer                             timer_  ;
 };
 
 void run_tcp_server(string /*server*/, size_t port)
