@@ -12,6 +12,8 @@
 #include <list>
 #include <array>
 #include <queue>
+#include <set>
+#include <map>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/asio.hpp>
@@ -41,6 +43,8 @@ using std::vector;
 using std::list;
 using std::array;
 using std::queue;
+using std::set;
+using std::map;
 
 using std::move;
 using std::forward;
@@ -80,28 +84,14 @@ using boost::make_shared;
 
 namespace posix_time = boost::posix_time;
 
-void run_server(string remote_ip, size_t port);
-void run_client(string local_ip , size_t port);
-
-void run_tcp_server(string server, size_t port);
-void run_tcp_client(string server, size_t port);
-
-#pragma pack(push, 1)
-struct test_msg_data
-{
-    size_t counter;
-    char data[1 << 14];
-
-    test_msg_data(size_t counter)
-        : counter(counter)
-    {
-    }
-};
-#pragma pack(pop)
-
 inline void trace_error(boost::system::error_code const& code)
 {
-    cerr << "Err! Msg: " << code.message() << "; category: " << code.category().name() << "; value: " << code.value() << endl;
+    cerr
+        << "Error! "
+        << code.message()
+        << "; category: " << code.category().name()
+        << "; value: "    << code.value()
+        << endl;
 }
 
 

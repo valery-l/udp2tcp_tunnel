@@ -126,7 +126,7 @@ private:
         }
 
         start_async_accept();
-        on_accept_(*socket, *peer);
+        on_accept_(*socket, endpoint(peer->address().to_v4(), peer->port()));
     }
 
 private:

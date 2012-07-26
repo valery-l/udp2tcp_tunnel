@@ -18,7 +18,7 @@ struct server
     {
     }
 
-    void on_accepted(tcp::socket& moveable_sock, tcp::endpoint const&)
+    void on_accepted(tcp::socket& moveable_sock, network::endpoint const&)
     {
         cout << "accepted some connection" << endl;
 

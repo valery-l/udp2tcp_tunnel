@@ -48,21 +48,10 @@ void parse_cmdline(int argc, char**argv, bool& is_server, string& server, size_t
 
 int main(int argc, char** argv)
 {
-    //try
-    //{
-        string server;
-        size_t port;
-        bool   is_server;
-
-        parse_cmdline(argc, argv, is_server, server, port);
-
-        if (is_server)
-            run_tcp_server(server, port);
-        else
-            run_tcp_client(server, port);
-    //}
     try
     {
+
+
     }
     catch (cmdline_error const& e)
     {

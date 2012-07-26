@@ -34,10 +34,12 @@ SOURCES += main.cpp \
     connecting.cpp \
     tcp_service.cpp \
     udp_service.cpp \
-    client.cpp \
-    server.cpp \
+    #client.cpp \
+    #server.cpp \
     ping.cpp \
-    async_timer.cpp
+    async_timer.cpp \
+    tunnel_udp_service.cpp \
+    tunnel_tcp_service.cpp
 
 HEADERS += \
     common.h \
@@ -52,7 +54,9 @@ HEADERS += \
     icmp_header.h \
     ping.h \
     network.h \
-    tunnel_point.h \
     async_timer.h \
-    auto_cancel.h
+    auto_cancel.h \
+    tunnel_tcp_service.h \
+    tunnel_udp_service.h \
+    tunnel_common.h
 

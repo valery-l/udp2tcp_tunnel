@@ -19,8 +19,8 @@ struct endpoint
     {}
 
     endpoint(const char* bytes)
-        : addr  (*reinterpret_cast<const unint32*>(bytes))
-        , port  (*reinterpret_cast<const unint16*>(bytes + sizeof(uin32_t)))
+        : addr  (*reinterpret_cast<const uint32_t*>(bytes))
+        , port  (*reinterpret_cast<const uint16_t*>(bytes + sizeof(uint32_t)))
     {
     }
 
@@ -50,10 +50,18 @@ struct endpoint
     size_t          port;
 };
 
-std::ostream& operator<<(std::ostream& o, endpoint const& point)
+inline std::ostream& operator<<(std::ostream& o, endpoint const& point)
 {
     return o << point.addr.to_string() << ":" << point.port;
 }
+
+inline bool operator<(endpoint const& lhs, endpoint const& rhs)
+{
+    return  lhs.addr < rhs.addr ||
+               (lhs.addr == rhs.addr &&
+                lhs.port  < rhs.port);
+}
+
 
 /////////////////////////////////////////////////////////////
 
