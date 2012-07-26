@@ -5,23 +5,6 @@
 namespace asio_helper
 {
 
-// todo: make async
-//template <class protocol>
-//typename protocol::resolver::iterator first_endpoint(io_service& io, network::endpoint const& point)
-//{
-//    typedef typename protocol::resolver  resolver_t;
-
-//    resolver_t res(io);
-//    typename resolver_t::query q(point.address, lexical_cast<string>(point.port));
-
-//    typename protocol::resolver::iterator it = res.resolve(q);
-//    typename protocol::resolver::iterator end;
-
-//    assert(it != end);
-
-//    return it;
-//}
-
 class shared_const_buffer
 {
 public:

@@ -45,6 +45,30 @@ private:
     udp::endpoint remote_peer_;
 };
 
+template<class T>
+struct scope_swap
+{
+    scope_swap(T* resource, optional<T> new_value)
+        : resource_ (*resource)
+        , old_value_(*resource)
+        , swap_     (new_value)
+    {
+        if (swap_)
+            resource_ = *new_value;
+    }
+
+   ~scope_swap()
+    {
+        if (swap_)
+            resource_ = old_value_;
+    }
+
+private:
+    T&      resource_;
+    T       old_value_;
+    bool    swap_;
+};
+
 } // 'anonymous'
 
 
@@ -76,8 +100,13 @@ struct udp_socket::impl
     {
     }
 
-    void send(const void* data, size_t size)
+    void send(const void* data, size_t size, optional<endpoint> const& remote_server)
     {
+        typedef optional<udp_transfer_strategy> strat_opt;
+
+        scope_swap<udp_transfer_strategy>
+            sc_sw(&strat_, remote_server ? strat_opt(in_place(*remote_server)) : strat_opt());
+
         transport_->send(data, size);
     }
 
@@ -99,9 +128,9 @@ udp_socket::udp_socket(
 {
 }
 
-void udp_socket::send(const void* data, size_t size)
+void udp_socket::send(const void* data, size_t size, optional<endpoint> const& remote_server)
 {
-    pimpl_->send(data, size);
+    pimpl_->send(data, size, remote_server);
 }
 
 } // namespace network

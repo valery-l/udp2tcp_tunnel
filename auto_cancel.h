@@ -18,7 +18,7 @@ struct enable_cancel_resource
 
     void detach_resource()
     {
-        on_cancel_.clear();
+        on_cancel_ = 0;
     }
 
     bool cancelled() const
@@ -36,6 +36,7 @@ private:
 
 template<class T>
 struct auto_cancel_ptr
+    : noncopyable
 {
     typedef shared_ptr<T> ptr_t;
 

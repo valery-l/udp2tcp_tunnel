@@ -13,7 +13,7 @@ struct udp_socket
         on_receive_f const&,
         on_error_f const&);
 
-    void send(const void* data, size_t size);
+    void send(const void* data, size_t size, optional<endpoint> const& remote_server = none);
 
 private:
     struct impl;

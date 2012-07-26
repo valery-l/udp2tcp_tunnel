@@ -6,14 +6,14 @@ struct client
 {
     client(io_service& io, string server, short port)
         : timer_    (io, bind(&client::on_tick, this))
-        , connector_(io, network::endpoint(server, port), bind(&client::on_connected, this, _1), trace_error)
+        , connector_(io, network::endpoint(server, port), bind(&client::on_connected, this, _1, _2), bind(&client::on_disconnected, this), trace_error)
         , port_     (port)
     {
         //cock_the_clock(1);
     }
 
 private:
-    void on_connected(tcp::socket& sock)
+    void on_connected(tcp::socket& sock, network::endpoint const&)
     {
         cout << "Bingo, connected!" << endl;
 

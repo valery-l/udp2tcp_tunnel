@@ -12,22 +12,23 @@ struct async_connector::impl
 {
     typedef shared_ptr<impl> ptr_t;
 
-    static ptr_t create(io_service& io, endpoint const& remote_server, on_connected_f const& on_connected, on_error_f const& on_error)
+    static ptr_t create(io_service& io, endpoint const& remote_server, on_connected_f const& on_connected, on_refused_f const& on_refused, on_error_f const& on_error)
     {
         // don't worry - the object will be deleted automatically after establishing connection
-        ptr_t connector(new impl(io, on_connected, on_error));
+        ptr_t connector(new impl(io, on_connected, on_refused, on_error));
         connector->sock_.async_connect(remote_server, bind(&impl::on_connected, connector, _1));
 
         return connector;
     }
 
 private:
-    impl(io_service& io, on_connected_f const& on_connected, on_error_f const& on_error)
+    impl(io_service& io, on_connected_f const& on_connected, on_refused_f const& on_refused, on_error_f const& on_error)
 
         : enable_cancel_resource(sock_)
 
         , sock_         (io)
         , on_connected_ (on_connected)
+        , on_refused_   (on_refused)
         , on_error_     (on_error )
     {
         assert(on_connected_);
@@ -40,24 +41,33 @@ private:
 
         if (code)
         {
+            if (code.category() == error::system_category && code.value() == error::connection_refused)
+            {
+                on_refused_();
+                return;
+            }
+
             on_error_(code);
             return;
         }
 
-        on_connected_(sock_);
-        detach_resource();
+        tcp::endpoint e = sock_.remote_endpoint();
+        on_connected_(sock_, endpoint(e.address().to_v4(), e.port()));
+
+        enable_cancel_resource::detach_resource();
     }
 
 
 private:
     tcp::socket     sock_;
     on_connected_f  on_connected_;
+    on_refused_f    on_refused_;
     on_error_f      on_error_;
 };
 
 ////////////////////////////////////////////////////////////////////////
-async_connector::async_connector(io_service& io, endpoint const& remote_server, on_connected_f const& on_connected, on_error_f const& on_error)
-    : pimpl_(impl::create(io, remote_server, on_connected, on_error))
+async_connector::async_connector(io_service& io, endpoint const& remote_server, on_connected_f const& on_connected, on_refused_f const& on_refused, on_error_f const& on_error)
+    : pimpl_(impl::create(io, remote_server, on_connected, on_refused, on_error))
 {
 }
 
