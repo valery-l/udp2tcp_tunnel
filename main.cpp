@@ -1,65 +1,28 @@
 #include "common.h"
-
-struct cmdline_error
-        : std::runtime_error
-{
-    cmdline_error(std::string err)
-        :  runtime_error(err)
-    {
-    }
-};
-
-size_t get_port(string port_str)
-{
-    try
-    {
-        return lexical_cast<size_t>(port_str);
-    }
-    catch (bad_lexical_cast)
-    {
-        throw cmdline_error("incorrect port");
-    }
-
-}
-
-void parse_cmdline(int argc, char**argv, bool& is_server, string& server, size_t& port)
-{
-    if (argc < 2)
-        throw cmdline_error("not enought arguments");
-
-    string address = argv[1];
-    is_server = false;
-
-    if (string(argv[1]) == "-s")
-    {
-        address   = argv[2];
-        is_server = true;
-    }
-
-    vector<string> tokens;
-    split(tokens, address, is_any_of(":"), boost::token_compress_on);
-
-    if (tokens.size() != 2)
-        throw cmdline_error("invalid server:port format");
-
-    server = tokens[0];
-    port   = get_port(tokens[1]);
-}
+#include "tunnel.h"
+#include "config_parser.h"
 
 int main(int argc, char** argv)
 {
     try
     {
+        if (argc != 2)
+        {
+            cerr << "invalid config" << endl;
+            cout << "usage: udp2tcp_tunnel <config>" << endl;
+            return 1;
+        }
 
+        tunnel tun;
 
+        parse_config(argv[1], tun);
+        tun.run();
+
+        return 0;
     }
-    catch (cmdline_error const& e)
+    catch (cfg_error const& e)
     {
         cout << "invalid parametes: " << e.what() << endl;
-
-        cout << "usage: asio_test -s <server>:<port> or"    << endl
-             << "       asio_test    <server>:<port>" << endl;
-
         return 1;
 
     }

@@ -68,7 +68,6 @@ private:
     {
         if (code)
         {
-
             if  // usually, by on_receive
                ((code.category() == error::misc_category    && code.value   () == error::eof)               ||
 

@@ -8,10 +8,23 @@ typedef function<void (error_code const&)>      on_error_f  ;
 
 struct endpoint
 {
-    endpoint(string address = "", size_t port = 0)
-        : addr  (address.empty() ? ip::address_v4::any() : ip::address_v4::from_string(address))
-        , port  (port)
-    {}
+    endpoint()
+        : addr(ip::address_v4::any())
+        , port(0)
+    {
+    }
+
+    endpoint(string point) // format is "address:port"
+    {
+        vector<string> tokens;
+        split(tokens, point, is_any_of(":"), boost::token_compress_on);
+
+        if (tokens.size() != 2)
+            throw std::runtime_error("invalid IPv4 address format " + point);
+
+        addr = ip::address_v4::from_string(tokens.front());
+        port = lexical_cast<size_t>(tokens.back());
+    }
 
     endpoint(ip::address_v4 address, size_t port = 0)
         : addr  (address)

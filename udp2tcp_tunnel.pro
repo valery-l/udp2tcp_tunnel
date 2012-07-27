@@ -39,7 +39,9 @@ SOURCES += main.cpp \
     ping.cpp \
     async_timer.cpp \
     tunnel_udp_service.cpp \
-    tunnel_tcp_service.cpp
+    tunnel_tcp_service.cpp \
+    tunnel.cpp \
+    config_parser.cpp
 
 HEADERS += \
     common.h \
@@ -58,5 +60,7 @@ HEADERS += \
     auto_cancel.h \
     tunnel_tcp_service.h \
     tunnel_udp_service.h \
-    tunnel_common.h
+    tunnel_common.h \
+    tunnel.h \
+    config_parser.h
 

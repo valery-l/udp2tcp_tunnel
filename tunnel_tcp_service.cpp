@@ -41,10 +41,10 @@ void tcp_client::on_disconnected(string reason)
 
 void tcp_client::on_connected(tcp::socket& sock, endpoint const& remote_peer)
 {
-    cout << "Connection established with " << remote_peer;
+    cout << "Connection established with " << remote_peer << endl;
 
     std::stringstream sstrm;
-    sstrm << "Connection lost with " << remote_peer;
+    sstrm << "Connection lost with " << remote_peer << endl;
 
     sock_ = in_place(ref(sock), bind(&tcp_client::on_receive, this, _1, _2), bind(&tcp_client::on_disconnected, this, sstrm.str()), trace_error);
 }
@@ -59,14 +59,24 @@ tcp_server::tcp_server(io_service& io, endpoint const& local_bind)
 
 void tcp_server::send(const void* data, size_t size, string client)
 {
-    clients_t::iterator it = clients_.find(client);
+    if (client.empty())
+    {
+        for (auto it = clients_.begin(); it != clients_.end(); ++it)
+            it->second->send(data, size);
+    }
+    else
+    {
+        clients_t::iterator it = clients_.find(client);
 
-    if (it != clients_.end())
-        it->second->send(data, size);
+        if (it != clients_.end())
+            it->second->send(data, size);
+    }
 }
 
 void tcp_server::on_accept(tcp::socket& sock, endpoint const& remote_peer)
 {
+    cout << "Connection with " << remote_peer.addr << " is established" << endl;
+
     clients_[remote_peer.addr.to_string()] =
         make_shared<tcp_socket>(
             ref (sock),
@@ -83,5 +93,5 @@ void tcp_server::on_receive(const void* data, size_t size)
 void tcp_server::on_disconnected(string client)
 {
     clients_.erase(client);
-    cout << "Connection lost with " << client;
+    cout << "Connection lost with " << client << endl;
 }
