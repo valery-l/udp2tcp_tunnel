@@ -41,9 +41,10 @@ private:
 
         if (code)
         {
-            if (code.category() == error::system_category && code.value() == error::connection_refused)
+            if ((code.category() == error::system_category && code.value() == error::connection_refused) ||
+                (code.category() == error::system_category && code.value() == error::timed_out))
             {
-                on_refused_();
+                on_refused_(code);
                 return;
             }
 
@@ -103,7 +104,6 @@ private:
         , on_accept_(on_accept)
         , on_error_ (on_error )
     {
-        acceptor_.set_option(ip::tcp::acceptor::reuse_address(true));
     }
 
     void start_async_accept()

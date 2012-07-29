@@ -23,7 +23,7 @@ vector<char> unite_with_endpoint(const void* data, size_t size, endpoint const& 
 
 //////////////////////////////////////////////////////////////
 udp_sender::udp_sender(io_service& io)
-    : sock_ (io, none, none, on_receive_f(0), trace_error)
+    : sock_ (io, none, none, on_receive_f(0), error_tracer("udp_sender"))
 {
 }
 
@@ -39,7 +39,7 @@ void udp_sender::send(const void* data, size_t size)
 
 //////////////////////////////////////////////////////////////
 udp_receiver::udp_receiver(io_service& io, endpoint const& local_bind, endpoint const& remote_server, tcp_sender_ptr sndr, string remote_tcp_point)
-    : sock_             (io, local_bind, none, bind(&udp_receiver::on_receive, this, _1, _2), trace_error)
+    : sock_             (io, local_bind, none, bind(&udp_receiver::on_receive, this, _1, _2), error_tracer("udp_receiver"))
     , sender_           (sndr)
     , remote_server_    (remote_server)
     , remote_tcp_point_ (remote_tcp_point)

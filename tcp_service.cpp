@@ -54,7 +54,15 @@ struct tcp_socket::impl
 
         : on_discon_(on_discon )
         , on_error_ (on_error  )
-        , transport_(transport_ptr(underlying_transport::create(move(moveable_sock), on_receive, bind(&impl::on_error, this, _1), &tcp_transfer_strat_)))
+        , transport_(
+              transport_ptr(
+                  underlying_transport::create(
+                      move(
+                        adjusted_socket(
+                            moveable_sock)),
+                      on_receive,
+                      bind(&impl::on_error, this, _1),
+                      &tcp_transfer_strat_)))
     {
     }
 
@@ -64,6 +72,13 @@ struct tcp_socket::impl
     }
 
 private:
+
+    tcp::socket& adjusted_socket(tcp::socket& sock)
+    {
+        sock.set_option(tcp::no_delay(true));
+        return sock;
+    }
+
     void on_error(error_code const& code)
     {
         if (code)
@@ -75,7 +90,7 @@ private:
                 (code.category() == error::system_category  && code.value   () == error::connection_reset)  ||
                 (code.category() == error::system_category  && code.value   () == error::broken_pipe     ))
             {
-                on_discon_();
+                on_discon_(code);
             }
             else
                 on_error_(code);

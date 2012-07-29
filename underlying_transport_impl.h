@@ -23,7 +23,7 @@ struct underlying_transport_impl
 
     static ptr_t create(socket_t&& sock, on_receive_f const& on_receive, on_error_f const& on_error, strat_t* strat)
     {
-        const size_t buf_size = 256 * 1024;
+        const size_t buf_size = 64 * 1024;
         sock.set_option(typename protocol::socket::send_buffer_size   (buf_size));
         sock.set_option(typename protocol::socket::receive_buffer_size(buf_size));
 
@@ -33,16 +33,18 @@ struct underlying_transport_impl
         return ptr;
     }
 
-    void send(const void *data, size_t size)
+    void send(const void *data, size_t size, optional<endpoint> const& dest = none)
     {
-        asio_helper::shared_const_buffer buf(
+        asio_helper::shared_const_buffer msg(
                     static_cast<const char*>(data),
-                    static_cast<const char*>(data) + size);
+                    static_cast<const char*>(data) + size,
+                    dest);
 
-        if (msgs_.empty() && ready_send_)
+        bool ready_send_now = (msgs_.empty() && ready_send_);
+        msgs_.push_back(msg);
+
+        if (ready_send_now)
         {
-            msgs_.push_back(buf);
-
             strat_.async_send(
                 sock_,
                 msgs_,
@@ -50,8 +52,6 @@ struct underlying_transport_impl
 
             ready_send_ = false;
         }
-        else
-            msgs_.push_back(buf);
     }
 
 private:
@@ -81,10 +81,12 @@ private:
         }
 
         if (!msgs_.empty())
+        {
             strat_.async_send(
                 sock_,
                 msgs_,
                 bind(&this_t::on_send, this->shared_from_this(), _1, _2));
+        }
         else
             ready_send_ = true;
     }
@@ -110,7 +112,7 @@ private:
     }
 
 private:
-    socket_t    sock_ ;
+    socket_t sock_ ;
 
 private:
     strat_t& strat_;
@@ -126,7 +128,7 @@ private:
 
     // for receiving
 private:
-    static const size_t         buf_size_ = 1 << 18;
+    static const size_t         buf_size_ = 256 * 1024;
 
     on_receive_f                on_receive_;
     std::array<char, buf_size_> buf_;

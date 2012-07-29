@@ -84,16 +84,23 @@ using boost::make_shared;
 
 namespace posix_time = boost::posix_time;
 
-inline void trace_error(boost::system::error_code const& code)
+inline void trace_error_from_source(string source, error_code const& code)
 {
     cerr
-        << "Error! "
+        << "Error: "
+        << source
+        << " -- "
         << code.message()
         << "; category: " << code.category().name()
         << "; value: "    << code.value()
         << endl;
 }
 
+typedef function<void (error_code const&)> on_error_f;
+inline on_error_f error_tracer(string source)
+{
+    return bind(trace_error_from_source, source, _1);
+}
 
 
 

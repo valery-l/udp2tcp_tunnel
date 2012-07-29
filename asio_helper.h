@@ -9,17 +9,19 @@ class shared_const_buffer
 {
 public:
     template<class byte_it>
-    shared_const_buffer(byte_it begin, byte_it end)
+    shared_const_buffer(byte_it begin, byte_it end, optional<network::endpoint> const& dest = none)
 
         : data_  (make_shared<array_t>(begin, end))
         , buffer_(buffer(*data_))
+        , dest_  (dest)
     {
     }
 
-    shared_const_buffer(const void* data, size_t size)
+    shared_const_buffer(const void* data, size_t size, optional<network::endpoint> const& dest = none)
 
         : data_  (make_shared<array_t>(reinterpret_cast<const char*>(data), reinterpret_cast<const char*>(data) + size))
         , buffer_(buffer(*data_))
+        , dest_  (dest)
     {
     }
 
@@ -32,12 +34,18 @@ public:
 
     operator const_buffer() const{ return buffer_; }
 
+public:
+    optional<network::endpoint> const& dest() const { return dest_; }
+
 private:
     typedef vector<char> array_t;
 
 private:
     shared_ptr<array_t> data_;
     const_buffer        buffer_;
+
+private:
+    optional<network::endpoint>  dest_;
 };
 
 // Implement the ConvertibleToConstBuffer requirements for shared_const_buffer

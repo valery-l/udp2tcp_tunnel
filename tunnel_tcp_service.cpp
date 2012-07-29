@@ -23,7 +23,8 @@ void tcp_client::start_connect(io_service& io, endpoint const& remote_server)
     std::stringstream sstrm;
     sstrm << "Connection refused for " << remote_server;
 
-    connector_ = in_place(ref(io), remote_server, bind(&tcp_client::on_connected, this, _1, _2), bind(&tcp_client::on_disconnected, this, sstrm.str()), trace_error);
+    connector_.reset();
+    connector_ = in_place(ref(io), remote_server, bind(&tcp_client::on_connected, this, _1, _2), bind(&tcp_client::on_disconnected, this, sstrm.str(), _1), error_tracer("client connector"));
 }
 
 void tcp_client::on_receive(const void* data, size_t size)
@@ -31,10 +32,10 @@ void tcp_client::on_receive(const void* data, size_t size)
     udp_sender_.send(data, size);
 }
 
-void tcp_client::on_disconnected(string reason)
+void tcp_client::on_disconnected(string reason, error_code const& code)
 {
     sock_.reset();
-    cout << reason << endl;
+    cout << reason << " Error: " << code.category().name() << ":" << code.message() << endl;
 
     reconnect_timer_.wait(reconnect_timeout_);
 }
@@ -44,16 +45,16 @@ void tcp_client::on_connected(tcp::socket& sock, endpoint const& remote_peer)
     cout << "Connection established with " << remote_peer << endl;
 
     std::stringstream sstrm;
-    sstrm << "Connection lost with " << remote_peer << endl;
+    sstrm << "Connection lost with " << remote_peer;
 
-    sock_ = in_place(ref(sock), bind(&tcp_client::on_receive, this, _1, _2), bind(&tcp_client::on_disconnected, this, sstrm.str()), trace_error);
+    sock_ = in_place(ref(sock), bind(&tcp_client::on_receive, this, _1, _2), bind(&tcp_client::on_disconnected, this, sstrm.str(), _1), error_tracer("client socket"));
 }
 
 
 //////////////////////////////////////////////////////////////////////
 tcp_server::tcp_server(io_service& io, endpoint const& local_bind)
     : udp_sender_(io)
-    , acceptor_  (io, local_bind, bind(&tcp_server::on_accept, this, _1, _2), trace_error)
+    , acceptor_  (io, local_bind, bind(&tcp_server::on_accept, this, _1, _2), error_tracer("server acceptor"))
 {
 }
 
@@ -78,11 +79,11 @@ void tcp_server::on_accept(tcp::socket& sock, endpoint const& remote_peer)
     cout << "Connection with " << remote_peer.addr << " is established" << endl;
 
     clients_[remote_peer.addr.to_string()] =
-        make_shared<tcp_socket>(
+        make_shared<tcp_fragment_wrapper>(
             ref (sock),
             bind(&tcp_server::on_receive     , this, _1, _2),
-            bind(&tcp_server::on_disconnected, this, remote_peer.addr.to_string()),
-            trace_error);
+            bind(&tcp_server::on_disconnected, this, remote_peer.addr.to_string(), _1),
+            error_tracer("tcp_client"));
 }
 
 void tcp_server::on_receive(const void* data, size_t size)
@@ -90,8 +91,8 @@ void tcp_server::on_receive(const void* data, size_t size)
     udp_sender_.send(data, size);
 }
 
-void tcp_server::on_disconnected(string client)
+void tcp_server::on_disconnected(string client, error_code const& code)
 {
     clients_.erase(client);
-    cout << "Connection lost with " << client << endl;
+    cout << "Connection lost with " << client << " Error: " << code.category().name() << ":" << code.message() << endl;
 }

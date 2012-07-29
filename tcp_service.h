@@ -4,7 +4,7 @@
 namespace network
 {
 
-typedef function<void ()>   on_disconnected_f;
+typedef function<void (error_code const&)>   on_disconnected_f;
 
 //////////////////////////////////////////////////
 // socket for sending and receiving streaming data

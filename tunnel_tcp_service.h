@@ -14,12 +14,12 @@ private:
     void start_connect(io_service& io, network::endpoint const& remote_server);
 
     void on_receive     (const void* data, size_t size);
-    void on_disconnected(string reason);
+    void on_disconnected(string reason, error_code const&);
     void on_connected   (tcp::socket& sock, network::endpoint const& remote_peer);
 
 private:
-    optional<network::tcp_socket>       sock_;
-    optional<network::async_connector>  connector_;
+    optional<network::tcp_fragment_wrapper> sock_;
+    optional<network::async_connector>      connector_;
 
 private:
     udp_sender udp_sender_;
@@ -39,7 +39,7 @@ struct tcp_server
 private:
     void on_accept      (tcp::socket& sock, network::endpoint const& remote_peer);
     void on_receive     (const void* data, size_t size);
-    void on_disconnected(string client);
+    void on_disconnected(string client, error_code const&);
 
 private:
     udp_sender udp_sender_;
@@ -49,7 +49,7 @@ private:
 
 private:
     typedef
-        map<string, shared_ptr<network::tcp_socket> >
+        map<string, shared_ptr<network::tcp_fragment_wrapper> >
         clients_t;
 
 private:

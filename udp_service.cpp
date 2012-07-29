@@ -13,10 +13,15 @@ udp::socket connected_udp_socket(
     io_service& io,
     optional<network::endpoint> const& local_bind)
 {
-    udp::socket sock = udp::socket(io, local_bind ? udp::endpoint(*local_bind) : udp::endpoint(ip::udp::v4(), 0));
+    udp::socket sock(io);
+    sock.open(udp::v4());
 
     sock.set_option(udp::socket::reuse_address(true));
     sock.set_option(udp::socket::broadcast    (true));
+
+    if (local_bind)
+        sock.bind(udp::endpoint(*local_bind));
+
     return sock;
 }
 
@@ -31,8 +36,10 @@ struct udp_transfer_strategy
     template<class buffers_sequence, class callback>
     void async_send(udp::socket& sock, buffers_sequence& buf_seq, callback const& cb) const
     {
-        sock.async_send_to(buf_seq.front(), remote_peer_, cb);
+        typename buffers_sequence::value_type msg = buf_seq.front();
         buf_seq.pop_front();
+
+        sock.async_send_to(msg, msg.dest() ? *msg.dest() : remote_peer_, cb);
     }
 
     template<class buffer, class callback>
@@ -45,29 +52,29 @@ private:
     udp::endpoint remote_peer_;
 };
 
-template<class T>
-struct scope_swap
-{
-    scope_swap(T* resource, optional<T> new_value)
-        : resource_ (*resource)
-        , old_value_(*resource)
-        , swap_     (new_value)
-    {
-        if (swap_)
-            resource_ = *new_value;
-    }
+//template<class T>
+//struct scope_swap
+//{
+//    scope_swap(T* resource, optional<T> new_value)
+//        : resource_ (*resource)
+//        , old_value_(*resource)
+//        , swap_     (new_value)
+//    {
+//        if (swap_)
+//            resource_ = *new_value;
+//    }
 
-   ~scope_swap()
-    {
-        if (swap_)
-            resource_ = old_value_;
-    }
+//   ~scope_swap()
+//    {
+//        if (swap_)
+//            resource_ = old_value_;
+//    }
 
-private:
-    T&      resource_;
-    T       old_value_;
-    bool    swap_;
-};
+//private:
+//    T&      resource_;
+//    T       old_value_;
+//    bool    swap_;
+//};
 
 } // 'anonymous'
 
@@ -100,14 +107,9 @@ struct udp_socket::impl
     {
     }
 
-    void send(const void* data, size_t size, optional<endpoint> const& remote_server)
+    void send(const void* data, size_t size, optional<endpoint> const& dest)
     {
-        typedef optional<udp_transfer_strategy> strat_opt;
-
-        scope_swap<udp_transfer_strategy>
-            sc_sw(&strat_, remote_server ? strat_opt(in_place(*remote_server)) : strat_opt());
-
-        transport_->send(data, size);
+        transport_->send(data, size, dest);
     }
 
 private:
@@ -128,9 +130,9 @@ udp_socket::udp_socket(
 {
 }
 
-void udp_socket::send(const void* data, size_t size, optional<endpoint> const& remote_server)
+void udp_socket::send(const void* data, size_t size, optional<endpoint> const& destination)
 {
-    pimpl_->send(data, size, remote_server);
+    pimpl_->send(data, size, destination);
 }
 
 } // namespace network
