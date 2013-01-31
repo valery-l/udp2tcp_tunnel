@@ -11,8 +11,13 @@ struct tcp_transfer_strategy
     template<class buffers_sequence, class callback>
     void async_send(tcp::socket& sock, buffers_sequence& buf_seq, callback const& cb)
     {
-        shared_buf_seq_ = shared_buf_seq_t(forward<buffers_sequence>(buf_seq));
-        buf_seq  = buffers_sequence();
+        // NOTE: firstly, I (Valera) thought that sending all the outgoing buffer on 'ready send callback' is a good idea. I was wrong :) 
+        // It has turned out, that in Solaris it lead to CPU usage 100%, if we wait a little without ability to 
+        // send data (e.g. unplug cable for a while) and send after this pause all the previously collected buffer.
+        // Sending message by message doesn't give such an effect. 
+
+        shared_buf_seq_ = shared_buf_seq_t(buf_seq.begin(), next(buf_seq.begin()));
+        buf_seq.pop_front();
 
         async_write(sock, shared_buf_seq_, cb);
     }
